@@ -14,7 +14,7 @@ def get_apikey(filename):
     return api_key
 
 
-def query():
+def query_with_file(filename: str, question: str):
     my_key = get_apikey(CONF_FILENAME)
 
     client = OpenAI(
@@ -22,12 +22,8 @@ def query():
     )
 
     # Load and encode the content of the text file
-    file_path = 'scraper.out'
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(filename, 'r', encoding='utf-8') as f:
         file_content = f.read()
-
-    # Ask a question about the file content
-    question = "This is the raw data from the LinkedIn profile of a person. Summarize all the information, and make sure to give specific detail on work experience, education, and interests."
 
     # Prepare the request payload
     messages = [
@@ -35,7 +31,7 @@ def query():
         {
             "role": "user",
             "content": [
-                {"type": "text", "text": f"Here is some text: {file_content}"},
+                {"type": "text", "text": f"Here is information from the file: {file_content}"},
                 {"type": "text", "text": question}
             ]
         }
@@ -56,4 +52,5 @@ def query():
 
 
 if __name__ == '__main__':
-    query()
+    query_string = 'This is the raw data from the LinkedIn profile of a person. Summarize all the information, and make sure to give specific detail on work experience, education, and interests.'
+    query_with_file('scraper.out', query_string)
