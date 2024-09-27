@@ -3,13 +3,30 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service as ChromeService
+from subprocess import CREATE_NO_WINDOW
 from bs4 import BeautifulSoup
+from dataclasses import dataclass
 import time
+import sys
 
 CONF_FILENAME = 'secrets.conf'
 OUTPUT_FILENAME = 'scraper.out'
-PROFILE_LINK = 'https://www.linkedin.com/in/williamhgates/'
 SHOW_BROWSER = True
+
+@dataclass
+class LinkedIn_Person:
+    name: str
+    title: str
+    location: str
+    link: str
+
+    def __str__(self):
+        return f'''Name: {self.name}
+Title: {self.title}
+Location: {self.location}
+'''
+
 
 def extract_text(html_content):
     # Parse the HTML content using BeautifulSoup
@@ -56,15 +73,19 @@ def get_credentials(filename):
     return username, password
 
 
-def get_profile(link, username, password):
-    # Initialize WebDriver and Chrome options
+# get a Selenium driver for browsing web pages
+# also login so that only has to happen once
+def get_driver(username, password, show_browser):
     options = Options()
 
-    # only need to show browser if the user must complete a CAPTCHA
-    if not SHOW_BROWSER:
-        options.add_argument("--headless=new")
+    if not show_browser:
+        options.add_argument('--headless=old')
+    options.add_argument("--log-level=3")
 
-    driver = webdriver.Chrome(options=options)
+    chrome_service = ChromeService()
+    chrome_service.creation_flags = CREATE_NO_WINDOW
+
+    driver = webdriver.Chrome(options=options, service=chrome_service)
 
     # Open LinkedIn login page
     driver.get("https://www.linkedin.com/login")
@@ -85,7 +106,11 @@ def get_profile(link, username, password):
 
     # Wait for the profile page to load and navigate to the desired profile
     WebDriverWait(driver, 30).until(EC.url_contains("feed"))
-    
+
+    return driver
+
+
+def get_profile(driver, link):
     # Navigate to the profile
     driver.get(link)
 
@@ -96,7 +121,7 @@ def get_profile(link, username, password):
     driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
     time.sleep(3)  # Wait a bit for any lazy-loaded content to load
 
-    # Extract the full page source
+    # Extract the full page html content
     html_content = driver.execute_script("return document.documentElement.innerHTML;")
     soup = BeautifulSoup(html_content, 'html.parser')
     profile_content = soup.find('main')
@@ -104,22 +129,81 @@ def get_profile(link, username, password):
 
     # page_text = extract_text(html_content)
     profile_text = extract_text(profile_content.get_text())
-   
-    # Close the browser
-    driver.quit()
 
     return profile_text
 
+def select_target_from_user(people: list['LinkedIn_Person']):
+    # Now we have a list of all potential people it could be
+    # Ask the user to pick one of them
+    for i, person in enumerate(people):
+        print(f'{i}: \n{person}')
+    print('Which one of the above listed options is the person you are targetting?')
+    selection = int(input('Enter number: '))
 
-def scrape():
+    return people[selection]
+
+
+# Find LinkedIn URL for someones profile from their first and last name
+def get_profile_link(driver, firstname, lastname):
+    search_link = f'https://www.linkedin.com/search/results/people/?keywords={firstname}%20{lastname}&origin=CLUSTER_EXPANSION'
+
+    driver.get(search_link)
+    time.sleep(3)
+
+    # Extract the full page html content
+    html_content = driver.execute_script("return document.documentElement.innerHTML;")
+    soup = BeautifulSoup(html_content, 'html.parser')
+    main_content = soup.find('main')
+    result_containers = main_content.find_all('li', class_='reusable-search__result-container')
+
+    people = []
+
+    for result in result_containers:
+        # if critical information is missing, will cause error and we can skip this result container
+        try:
+            primary_info = result.find('span', class_='entity-result__title-text t-16')
+            name = primary_info.find('span', dir='ltr').find_next('span').text.strip()
+            link = primary_info.find('a', class_='app-aware-link')['href']
+
+            title = result.find('div', class_='entity-result__primary-subtitle t-14 t-black t-normal').text.strip()
+            location = result.find('div', class_='entity-result__secondary-subtitle t-14 t-normal').text.strip()
+        except AttributeError as e:
+            continue
+
+        people.append(LinkedIn_Person(name, title, location, link))
+    
+    selection = select_target_from_user(people)
+    return selection.link
+
+
+# main scraping function
+def scrape(firstname, lastname):
+    # get user credentials from secret file
     username, password = get_credentials(CONF_FILENAME)
-    profile_text = get_profile(PROFILE_LINK, username, password)
+
+    # get reusable selenium driver
+    driver = get_driver(username, password, SHOW_BROWSER)
+
+    # get link to profile by searching and asking user
+    profile_link = get_profile_link(driver, firstname, lastname)
+
+    # get text of profile to save to file
+    print('Viewing profile...')
+    profile_text = get_profile(driver, profile_link)
 
     # Save the extracted text to a file
     with open(OUTPUT_FILENAME, 'w', encoding='utf-8') as f:
         f.write(profile_text)
 
+    driver.quit()
+
 
 if __name__ == '__main__':
-    scrape()
+    if len(sys.argv) != 3:
+        print(f'Usage: {sys.argv[0]} [firstname] [lastname]\n')
+        exit()
+    else:
+        firstname = sys.argv[1]
+        lastname = sys.argv[2]
+        scrape(firstname, lastname)
 
