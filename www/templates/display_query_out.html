@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile Information</title>
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        h1 {
+            text-align: center;
+            color: #4CAF50;
+        }
+        .content {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            line-height: 1.6;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            white-space: pre-wrap; /* Preserves new lines and allows text wrapping */
+            word-wrap: break-word;  /* Breaks long words to prevent horizontal scrolling */
+        }
+    </style>
+</head>
+<body>
+    <h1>Profile Information</h1> 
+    <div class="content">{{ file_contents }}</div>
+</body>
+</html>

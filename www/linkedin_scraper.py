@@ -27,6 +27,10 @@ Title: {self.title}
 Location: {self.location}
 '''
 
+def save_to_file(filename, content):
+    with open(filename, 'w', encoding='utf-8') as f:
+        f.write(content)
+
 
 def extract_text(html_content):
     # Parse the HTML content using BeautifulSoup
@@ -132,19 +136,30 @@ def get_profile(driver, link):
 
     return profile_text
 
-def select_target_from_user(people: list['LinkedIn_Person']):
-    # Now we have a list of all potential people it could be
-    # Ask the user to pick one of them
+
+def get_string_profile_choice_list(people: list['LinkedIn_Person']):
+    result = f''
     for i, person in enumerate(people):
-        print(f'{i}: \n{person}')
-    print('Which one of the above listed options is the person you are targetting?')
-    selection = int(input('Enter number: '))
-
-    return people[selection]
+        result += f'{i}: \n{person}\n'
+    return result
 
 
-# Find LinkedIn URL for someones profile from their first and last name
-def get_profile_link(driver, firstname, lastname):
+# get the proper profile with user input
+# if choice is not passed, get command line input from user
+def get_profile_link(people: list['LinkedIn_Person'], selection: int = None):
+    if selection is None:
+        # Now we have a list of all potential people it could be
+        # Ask the user to pick one of them
+        print(get_string_profile_choice_list(people))
+        print('Which one of the above listed options is the person you are targetting?')
+        selection = int(input('Enter number: '))
+        return people[selection].link
+    else:  # a selection was passed, just use that
+        return people[selection].link
+
+
+# Get a list of potential profiles for the user to choose from
+def get_profile_choice_list(driver, firstname, lastname):
     search_link = f'https://www.linkedin.com/search/results/people/?keywords={firstname}%20{lastname}&origin=CLUSTER_EXPANSION'
 
     driver.get(search_link)
@@ -172,8 +187,7 @@ def get_profile_link(driver, firstname, lastname):
 
         people.append(LinkedIn_Person(name, title, location, link))
     
-    selection = select_target_from_user(people)
-    return selection.link
+    return people
 
 
 # main scraping function
@@ -185,15 +199,17 @@ def scrape(firstname, lastname):
     driver = get_driver(username, password, SHOW_BROWSER)
 
     # get link to profile by searching and asking user
-    profile_link = get_profile_link(driver, firstname, lastname)
+    profile_choice_list = get_profile_choice_list(driver, firstname, lastname)
+
+    # get the user's choice
+    profile_link = get_profile_link(profile_choice_list, None)
 
     # get text of profile to save to file
     print('Viewing profile...')
     profile_text = get_profile(driver, profile_link)
 
     # Save the extracted text to a file
-    with open(OUTPUT_FILENAME, 'w', encoding='utf-8') as f:
-        f.write(profile_text)
+    save_to_file(OUTPUT_FILENAME, profile_text)
 
     driver.quit()
 
