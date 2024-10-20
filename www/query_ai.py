@@ -14,6 +14,39 @@ def get_apikey(filename):
     return api_key
 
 
+# just ask the AI a question and return the response in a string
+def query(question: str):
+    my_key = get_apikey(CONF_FILENAME)
+    client = OpenAI(
+        api_key=my_key
+    )
+
+    # Prepare the request payload
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": question}
+            ]
+        }
+    ]
+
+    # Send the request to the GPT-4o API
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=messages,
+        temperature=0.7
+    )
+
+    # Print the model's response
+    answer = response.choices[0].message.content
+    
+    return answer
+
+
+# ask AI question with given file contents
+# output is put into the OUTPUT_FILE 
 def query_with_file(filename: str, question: str):
     my_key = get_apikey(CONF_FILENAME)
 

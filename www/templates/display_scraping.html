@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scraping Status</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f2f5;
+        }
+        .container {
+            text-align: center;
+            background-color: #fff;
+            padding: 2rem 3rem;
+            border-radius: 10px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+        .title {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 1rem;
+        }
+        .subtitle {
+            font-size: 1.5rem;
+            color: #555;
+        }
+        .subsubtitle {
+            font-size: 1.2rem;
+            color: #555;
+        }
+    </style>
+    <script>
+        // JavaScript to call /scrape when the page loads
+        window.onload = function() {
+            fetch('/scrape', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.redirect_url) {
+                    // Redirect to the URL returned by the server
+                    window.location.href = data.redirect_url;
+                } else {
+                    console.error('Error: No redirect URL provided');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        };
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="title">Scraping...</div>
+        <div class="subtitle">Using the following information:</div>
+        <div class="subsubtitle">Target name: {{ target_name }} </div>
+        <div class="subsubtitle">Other information: {{ more_info }} </div>
+    </div>
+</body>
+</html>

@@ -23,7 +23,7 @@
             max-width: 400px;
             text-align: center;
         }
-        input[type="text"] {
+        input[type="text"], textarea {
             width: 80%;
             padding: 0.5rem;
             margin-bottom: 1rem;
@@ -42,13 +42,19 @@
         button:hover {
             background-color: #0056b3;
         }
+        textarea {
+            resize: none;
+            height: 100px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Enter your target's name</h1>
+        <h1>Enter your target's information</h1>
         <form action="/process" method="POST">
-            <input type="text" name="user_input" placeholder="Enter a name..." required>
+            <input type="text" name="target_name" placeholder="Enter a name..." required>
+            <br>
+            <textarea name="more_info" placeholder="Other information you know..." required></textarea>
             <br>
             <button type="submit">Enter</button>
         </form>

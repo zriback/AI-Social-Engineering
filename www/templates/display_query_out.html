@@ -25,10 +25,29 @@
             white-space: pre-wrap; /* Preserves new lines and allows text wrapping */
             word-wrap: break-word;  /* Breaks long words to prevent horizontal scrolling */
         }
+        .button-container {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .button-container button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .button-container button:hover {
+            background-color: #45a049;
+        }
     </style>
 </head>
 <body>
     <h1>Profile Information</h1> 
     <div class="content">{{ file_contents }}</div>
+    <div class="button-container">
+        <button onclick="location.href='/'">Search another target</button>
+    </div>
 </body>
 </html>
