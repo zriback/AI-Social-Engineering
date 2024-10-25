@@ -1,5 +1,6 @@
 import time
 import json
+import re
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -7,6 +8,81 @@ from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
+
+
+
+from openai import OpenAI
+import base64
+
+CONF_FILENAME = 'secrets.conf'
+OUTPUT_FILENAME = 'query.out'
+
+def get_apikey(filename):
+    with open(filename, 'r') as f:
+        for line in f.readlines():
+            if line.startswith('#'):
+                continue
+            if line.startswith('api_key'):
+                api_key = line.split('=')[1].strip()
+    return api_key
+def get_username(filename):
+    with open(filename, 'r') as f:
+        for line in f.readlines():
+            if line.startswith('#'):
+                continue
+            if line.startswith('username'):
+                api_key = line.split('=')[1].strip()
+            if line.startswith('password'):
+                apikey2 = line.split('=')[1].strip()
+    return api_key, apikey2
+
+
+
+
+def query(filepath, number):
+    my_key = get_apikey(CONF_FILENAME)
+
+    client = OpenAI(
+        api_key=my_key
+    )
+
+    # Load and encode the content of the text file
+    file_path = 'instagram_profiles_posts.json'
+    with open(filepath, 'r', encoding='utf-8') as f:
+        file_content = f.read()
+
+    # Ask a question about the file content
+    if number == 1:
+        question = "This is data from the Instagram profile of a person. Summarize all the information, and make sure to give specific detail on work experience, education, and interests."
+    if number == 2:
+        question = "Here are some people's instagram information. They are numbered starting from 1 and going up. Use the following provided information to select the person from this list that most matches the target person as described in the last line of the document. Your answer should come in the form of just ONE number followed by the word 'bananas'. Here is the added information"
+
+    # Prepare the request payload
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": f"Here is some text: {file_content}"},
+                {"type": "text", "text": question}
+            ]
+        }
+    ]
+
+    # Send the request to the GPT-4o API
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=messages,
+        temperature=0.7
+    )
+
+    # Print the model's response
+    answer = response.choices[0].message.content
+    
+    with open(OUTPUT_FILENAME, 'w') as f:
+        f.write(answer)
+
+
 
 
 
@@ -23,31 +99,24 @@ def click_first_post(driver, account, number):
 
         # Press Enter to try and open the item (either a post or highlight)
         action.send_keys(Keys.ENTER).perform()
-        time.sleep(5)  # Wait for navigation to complete
-
+        time.sleep(2)  # Wait for navigation to complete
+        
         # Check if the current URL contains the word "highlight"
         current_url = driver.current_url
-        if "highlight" in current_url:
-            print(f"Encountered highlight, retrying with x = {x + 2}")
-
-            # Press Alt + Left Arrow to go back to the previous page
-            #action.key_down(Keys.ALT).send_keys(Keys.ARROW_LEFT).key_up(Keys.ALT).perform()
+        xstart = x
+        if "/p/" not in current_url:
             driver.get(account)
-            time.sleep(5)  # Wait for the profile page to load
-
-            # Increase the tab count and retry
-            x += 2  
-        else:
-            break  # Found a valid post, exit loop
+            time.sleep(2)
+            x+=1
+        if xstart == x:
+            break
 
     # Press Tab 3 more times to focus on the first post
-    for _ in range(3):
-        action.send_keys(Keys.TAB).perform()
-        time.sleep(0.1)
+    
 
     # Press Enter to open the first post
     action.send_keys(Keys.ENTER).perform()
-    time.sleep(3)
+    time.sleep(2)
     return x
 
 
@@ -59,7 +128,7 @@ def setup_driver(proxy_address=None, proxy_port=None):
     firefox_options = Options()
 
     # Uncomment this line to enable headless mode (no browser UI)
-    firefox_options.add_argument('--headless')
+    # firefox_options.add_argument('--headless')
 
     # Use a proxy if provided
     if proxy_address and proxy_port:
@@ -80,7 +149,7 @@ def setup_driver(proxy_address=None, proxy_port=None):
 def login_to_instagram(driver, username, password):
     """Login to Instagram with provided credentials"""
     driver.get("https://www.instagram.com/accounts/login/")
-    time.sleep(5)
+    time.sleep(2)
 
     # Accept Cookies (if applicable)
     try:
@@ -103,7 +172,7 @@ def login_to_instagram(driver, username, password):
     password_input.send_keys(Keys.RETURN)
 
     # Wait for login to complete
-    time.sleep(5)
+    time.sleep(2)
 
     try:
         not_now_button = WebDriverWait(driver, 10).until(
@@ -118,7 +187,7 @@ def scrape_user_profile(driver, username, num_posts):
     profile_url = f"https://www.instagram.com/{username}/"
     driver.get(profile_url)
     teemo = 12
-    time.sleep(3)
+    time.sleep(2)
 
     profile_data = {
         "username": username,
@@ -182,7 +251,7 @@ def scrape_post(driver):
         )
 
         # After navigating to the post page, ensure it fully loads
-        time.sleep(3)  # Adjust this delay if necessary
+        time.sleep(2)  # Adjust this delay if necessary
 
         # Check if the metadata is updated for the current post by comparing it with the previous metadata
         meta_element = WebDriverWait(driver, 10).until(
@@ -227,21 +296,60 @@ def parse_number(text):
 
 def main():
     # Get user input
-    usernames_input = input("Enter Instagram usernames separated by commas: ")
+    username, password = get_username(CONF_FILENAME)
+    usernames_input = input("Enter Name of Individual: ")
     usernames = [username.strip() for username in usernames_input.split(',')]
-    num_posts = int(input("Enter the number of posts to scrape per profile: "))
-    insta_username = input("Enter your Instagram username: ")
-    insta_password = input("Enter your Instagram password: ")
-    proxy_address = input("Enter proxy address (or leave blank): ")
-    proxy_port = input("Enter proxy port (or leave blank): ")
-
+    num_posts = 10
+    # num_posts = int(input("Enter the number of posts to scrape per profile: "))
+    # insta_username = input("Enter your Instagram username: ")
+    # insta_password = input("Enter your Instagram password: ")
+    proxy_address = ""
+    proxy_port = ""
     # Set up the WebDriver
     driver = setup_driver(proxy_address, proxy_port)
 
     try:
-        # Log into Instagram
-        login_to_instagram(driver, insta_username, insta_password)
+        driver.get(f"https://www.google.com/search?q={usernames}+instagram")
+        time.sleep(2)
+        titles = driver.find_elements(By.TAG_NAME, "h3")
+        usernames2 = []
+        for t in titles:
+            stuff = t.text
+            if "@" in stuff:
+                help = stuff.split("@")[1].split()[0]
+                help = help[:-1]
+                
+                usernames2.append(help)
 
+            if len(usernames2) == 5:
+                break
+        # print(usernames2)
+        # Log into Instagram
+        login_to_instagram(driver, username, password)
+        canidates = []
+
+        for username in usernames2:
+            profiledata = scrape_user_profile(driver, username, 1)
+            canidates.append(profiledata)
+        
+        canidates.append(usernames)
+
+        with open("candidates.json", "w", encoding="utf-8") as f:
+            json.dump(canidates, f, indent=2, ensure_ascii=False)
+            
+            
+
+        query("candidates.json", 2)
+        with open('query.out', 'r') as file:
+            contents = file.read()
+            print(contents)
+
+        result = re.search(r'\d+', contents)
+
+        awesomenumber = result.group()
+        usernames_input = canidates[int(awesomenumber) - 1]['username']
+        print(usernames_input)
+        usernames = [username.strip() for username in usernames_input.split(',')]
         # Scrape profiles
         all_profiles = []
         for username in usernames:
@@ -256,6 +364,8 @@ def main():
         print("Scraping complete. Data saved to instagram_profiles_posts.json")
     finally:
         driver.quit()
+    
+    query("instagram_profiles_posts.json", 1)
 
 if __name__ == "__main__":
     main()
