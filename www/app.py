@@ -5,6 +5,8 @@ from linkedin_scraper import OUTPUT_FILENAME as SCRAPER_OUT
 import twitter_scraper as ts
 from query_ai import *
 from query_ai import OUTPUT_FILENAME as AI_OUT
+from instascraper import *
+from instascraper import OUTPUT_FILENAME as INSTAGRAM_OUT
 import re
 
 APP_SHOW_BROWSER = True
