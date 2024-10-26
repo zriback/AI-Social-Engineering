@@ -32,6 +32,79 @@ def find_first_number(string: str):
         return None
 
 
+def scrape_instagram():
+    # Get user input CHANGE THIS
+    username, password = get_username(CONF_FILENAME)
+    usernames = tuple(session.get('target_name').split()) + session.get('more_info')
+    num_posts = 10
+    
+    # Set up the WebDriver CHANGE THIS
+    global selenium_driver
+
+    try:
+        selenium_driver.get(f"https://www.google.com/search?q={usernames}+instagram")
+        time.sleep(2)
+        titles = selenium_driver.find_elements(By.TAG_NAME, "h3")
+        usernames2 = []
+        for t in titles:
+            stuff = t.text
+            if "@" in stuff:
+                help = stuff.split("@")[1].split()[0]
+                help = help[:-1]
+                
+                usernames2.append(help)
+
+            if len(usernames2) == 5:
+                break
+        # print(usernames2)
+        # Log into Instagram
+        login_to_instagram(selenium_driver, username, password)
+        canidates = []
+
+        for username in usernames2:
+            profiledata = scrape_user_profile(selenium_driver, username, 1)
+            canidates.append(profiledata)
+        
+        canidates.append(usernames)
+
+        with open("candidates.json", "w", encoding="utf-8") as f:
+            json.dump(canidates, f, indent=2, ensure_ascii=False)
+            
+            
+
+        instascraper.query("candidates.json", 2)
+        with open('insta.out', 'r') as file:
+            contents = file.read()
+            print(contents)
+
+        result = re.search(r'\d+', contents)
+
+        awesomenumber = result.group()
+        usernames_input = canidates[int(awesomenumber) - 1]['username']
+        print(usernames_input)
+        usernames = [username.strip() for username in usernames_input.split(',')]
+        # Scrape profiles
+        all_profiles = []
+        for username in usernames:
+            print(f"Scraping profile: {username}")
+            profile_data = scrape_user_profile(selenium_driver, username, num_posts)
+            all_profiles.append(profile_data)
+
+        # Save to JSON
+        with open("instagram_profiles_posts.json", "w", encoding="utf-8") as f:
+            json.dump(all_profiles, f, indent=2, ensure_ascii=False)
+
+        print("Scraping complete. Data saved to instagram_profiles_posts.json")
+    finally:
+        print("haiii")
+    
+    instascraper.query("instagram_profiles_posts.json", 1)
+
+
+
+
+
+
 def scrape_linkedin():
     global selenium_driver
     firstname, lastname = tuple(session.get('target_name').split())
