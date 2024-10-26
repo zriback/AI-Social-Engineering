@@ -100,7 +100,7 @@ def scrape_instagram():
     finally:
         print("haiii")
     
-    instascraper.query("instagram_profiles_posts.json", 1)
+    
 
 
 
