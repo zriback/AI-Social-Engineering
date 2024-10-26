@@ -4,7 +4,6 @@ from subprocess import CREATE_NO_WINDOW
 
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.by import By
@@ -33,7 +32,7 @@ class TwitterPerson:
 
 def get_credentials(filename):
     """Retrieve Twitter credentials from a configuration file."""
-    username = password = email = ''
+    username = password = ''
     with open(filename, 'r') as file:
         for line in file:
             if line.startswith('#'):
@@ -200,10 +199,7 @@ def get_tweets_and_save(driver, profile_link, num_tweets, output_filename):
             break  # No more content to load
         last_height = new_height
 
-    # Save tweets to JSON file
-    with open(output_filename, 'w', encoding='utf-8') as f:
-        json.dump(tweets[:num_tweets], f, ensure_ascii=False, indent=4)
-    print(f"Saved {len(tweets)} tweets to {output_filename}")
+    return tweets[:num_tweets]
 
 def scrape_tweets(first_name, last_name, tweet_count, output_filename):
     """
