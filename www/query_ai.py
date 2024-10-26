@@ -45,6 +45,47 @@ def query(question: str):
     return answer
 
 
+# ask AI question with all given file contents
+# output is put into OUTPUT_FILE
+def query_with_files(filenames: list['str'], question: str):
+    my_key = get_apikey(CONF_FILENAME)
+
+    client = OpenAI(
+        api_key=my_key
+    )
+
+    all_scraper_info = ''
+    for filename in filenames:
+        with open(filename, 'r', encoding='utf-8') as f:
+            all_scraper_info += f.read() + '\n'
+
+    # Prepare the request payload
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": f"Here is information from the file: {all_scraper_info}"},
+                {"type": "text", "text": question}
+            ]
+        }
+    ]
+
+    # Send the request to the GPT-4o API
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=messages,
+        temperature=0.7
+    )
+
+    # Print the model's response
+    answer = response.choices[0].message.content
+    
+    with open(OUTPUT_FILENAME, 'w') as f:
+        f.write(answer)
+
+
+
 # ask AI question with given file contents
 # output is put into the OUTPUT_FILE 
 def query_with_file(filename: str, question: str):
