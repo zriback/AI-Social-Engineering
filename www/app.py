@@ -168,7 +168,7 @@ def scrape():
     scrape_twitter()
 
     # TODO
-    # scrape_instagram()
+    scrape_instagram()
     # scrape_google()
 
     return jsonify({'redirect_url': '/display_generating_report'})
