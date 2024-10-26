@@ -7,6 +7,7 @@ from query_ai import *
 from query_ai import OUTPUT_FILENAME as AI_OUT
 from instascraper import *
 from instascraper import OUTPUT_FILENAME as INSTAGRAM_OUT
+from instascraper import query as instaquery
 import re
 
 APP_SHOW_BROWSER = True
@@ -74,7 +75,7 @@ def scrape_instagram():
             
             
 
-        instascraper.query("candidates.json", 2)
+        instaquery("candidates.json", 2)
         with open('insta.out', 'r') as file:
             contents = file.read()
             print(contents)
