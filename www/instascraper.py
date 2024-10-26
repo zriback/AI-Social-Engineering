@@ -30,9 +30,9 @@ def get_username(filename):
         for line in f.readlines():
             if line.startswith('#'):
                 continue
-            if line.startswith('username'):
+            if line.startswith('instausername'):
                 api_key = line.split('=')[1].strip()
-            if line.startswith('password'):
+            if line.startswith('instapassword'):
                 apikey2 = line.split('=')[1].strip()
     return api_key, apikey2
 
