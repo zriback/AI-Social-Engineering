@@ -15,7 +15,7 @@ from openai import OpenAI
 import base64
 
 CONF_FILENAME = 'secrets.conf'
-OUTPUT_FILENAME = 'query.out'
+OUTPUT_FILENAME = 'insta.out'
 
 def get_apikey(filename):
     with open(filename, 'r') as f:
