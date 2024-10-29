@@ -69,9 +69,9 @@ def get_credentials(filename):
         for line in f.readlines():
             if line.startswith('#'):
                 continue
-            if line.startswith('username='):
+            if line.startswith('linkedin_username='):
                 username = line.split('=')[1].strip()
-            if line.startswith('password='):
+            if line.startswith('linkedin_password='):
                 password = line.split('=')[1].strip()
     
     return username, password

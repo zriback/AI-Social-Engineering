@@ -29,6 +29,16 @@ class TwitterPerson:
             f"TwitterPerson(name='{self.name}', username='@{self.username}', "
             f"bio='{self.bio}', profile_link='{self.profile_link}')"
         )
+    
+def get_profile_link(people: list['TwitterPerson'], selection: int = None):
+    if selection is None:
+        # Now we have a list of all potential people it could be
+        # Ask the user to pick one of them
+        print('Which one of the above listed options is the person you are targetting?')
+        selection = int(input('Enter number: '))
+        return people[selection].profile_link
+    else:  # a selection was passed, just use that
+        return people[selection].profile_link
 
 def get_credentials(filename):
     """Retrieve Twitter credentials from a configuration file."""
@@ -149,16 +159,18 @@ def select_profile(profiles, selection=None):
     """
     Let the user select a profile from the list of profiles.
     """
-    if selection is None:
-        print(format_profile_choices(profiles))
-        print('Which one of the above listed options is the person you are targeting?')
-        selection = int(input('Enter number: '))
-    return profiles[selection].profile_link
+    # if selection is None:
+    #     print(format_profile_choices(profiles))
+    #     print('Which one of the above listed options is the person you are targeting?')
+    #     selection = int(input('Enter number: '))
+    # return profiles[selection].profile_link
+    return format_profile_choices(profiles)
 
 def get_tweets_and_save(driver, profile_link, num_tweets, output_filename):
     """
     Extract tweets from the profile and save them to a JSON file.
     """
+    print(profile_link)
     driver.get(profile_link)
     time.sleep(3)  # Allow time for the page to load fully
 

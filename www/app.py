@@ -5,6 +5,7 @@ from linkedin_scraper import OUTPUT_FILENAME as SCRAPER_OUT
 import twitter_scraper as ts
 from query_ai import *
 from query_ai import OUTPUT_FILENAME as AI_OUT
+from query_ai import query as query_ai
 from instascraper import *
 from instascraper import OUTPUT_FILENAME as INSTAGRAM_OUT
 from instascraper import query as instaquery
@@ -101,11 +102,6 @@ def scrape_instagram():
     finally:
         print("haiii")
     
-    
-
-
-
-
 
 
 def scrape_linkedin():
@@ -125,8 +121,9 @@ def scrape_linkedin():
         of just ONE number followed by the word "bananas". Here is the added information\n{more_info}'
     
     # get the number from the AI for its choice
-    ai_choice_string = query(query_string)
+    ai_choice_string = query_ai(query_string)
     ai_choice_num = find_first_number(ai_choice_string)
+    
 
     print(choice_list_printout)
     print(ai_choice_string)
@@ -134,6 +131,7 @@ def scrape_linkedin():
     profile_link = get_profile_link(profile_choice_list, ai_choice_num)
     profile_text = get_profile(selenium_driver, profile_link)
     save_to_file(LINKEDIN_SCRAPER_OUTPUT_FILE, profile_text)
+
 
 def scrape_twitter():
     global selenium_driver
@@ -152,12 +150,17 @@ def scrape_twitter():
         of just ONE number followed by the word "bananas". Here is the added information\n{more_info}'
     
     # get the number from the AI for its choice
-    ai_choice_string = query(query_string)
+    ai_choice_string = query_ai(query_string)
     ai_choice_num = find_first_number(ai_choice_string)
 
-    profile_link = ts.select_profile(profile_choice_list, ai_choice_num)
+    profile_link = ts.get_profile_link(profile_choice_list, ai_choice_num)
     tweets = ts.get_tweets_and_save(selenium_driver, profile_link, 10, TWITTER_SCRAPER_OUTPUT_FILE)
-    save_to_file(TWITTER_SCRAPER_OUTPUT_FILE, tweets)
+
+    tweets_str = ''
+    for tweet in tweets:
+        tweets_str += (tweet + '\n')
+
+    save_to_file(TWITTER_SCRAPER_OUTPUT_FILE, tweets_str)
 
 
 @app.route('/')
@@ -167,11 +170,11 @@ def home():
 @app.route('/scrape', methods=['POST'])
 def scrape():
     # do first search for that name on LinkedIn
-    scrape_linkedin()
+    # scrape_linkedin()
     scrape_twitter()
 
     # TODO
-    scrape_instagram()
+    # scrape_instagram()
     # scrape_google()
 
     return jsonify({'redirect_url': '/display_generating_report'})
@@ -199,21 +202,25 @@ def display_generating_report():
 # for now it just deals with the linkedin stuff but once everything is implemented it will do all of it
 @app.route('/generate_report', methods=['POST'])
 def generate_report():
+    
     query_string = 'This is the raw data from the LinkedIn profile of a person. Summarize all the information, \
         and make sure to give specific detail on work experience, education, and interests.' 
-    query_with_file(LINKEDIN_SCRAPER_OUTPUT_FILE, query_string)
-    # get query output form the AI's output file
+    query_with_file(LINKEDIN_SCRAPER_OUTPUT_FILE, query_string) 
+    # get query output form the AI's output for LinkedIn
     with open(AI_OUT, 'r') as f:
-        query_output = f.read()
+        linkedin_query_output = f.read()
+    session['linkedin_query_output'] = linkedin_query_output
 
-    session['query_output'] = query_output
+    # TODO
+    # get and save output for other scrapers
+
     
     return jsonify({'redirect_url': '/display_summary'})
 
 
 @app.route('/display_summary', methods=['GET'])
 def display_summary():
-    summary = session.get('query_output')
+    summary = session.get('linkedin_query_output')
     return render_template('/display_query_out.html', file_contents=summary)
 
 
@@ -242,6 +249,6 @@ def scrape_linkedin_profile():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, port=5007)
 
     
