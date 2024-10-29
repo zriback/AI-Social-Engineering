@@ -54,10 +54,10 @@ def query_with_files(filenames: list['str'], question: str):
         api_key=my_key
     )
 
-    all_scraper_info = ''
+    all_file_info = ''
     for filename in filenames:
         with open(filename, 'r', encoding='utf-8') as f:
-            all_scraper_info += f.read() + '\n'
+            all_file_info += f.read() + '\n\n'
 
     # Prepare the request payload
     messages = [
@@ -65,7 +65,7 @@ def query_with_files(filenames: list['str'], question: str):
         {
             "role": "user",
             "content": [
-                {"type": "text", "text": f"Here is information from the file: {all_scraper_info}"},
+                {"type": "text", "text": f"Here is information from the files: {all_file_info}"},
                 {"type": "text", "text": question}
             ]
         }
