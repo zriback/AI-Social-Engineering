@@ -6,7 +6,13 @@ import json
 def scrape_webpage(url):
     try:
         # Send an HTTP request to the webpage
-        response = requests.get(url)
+        # Set headers with a User-Agent to simulate a browser
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.102 Safari/537.36'
+        }
+
+        # Send an HTTP request with the headers
+        response = requests.get(url, headers=headers)
         response.raise_for_status()  # Raise an error for bad responses
 
         # Parse the HTML content using BeautifulSoup
