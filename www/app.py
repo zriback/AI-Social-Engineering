@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, session, jsonify
 from flask_session import Session
 from linkedin_scraper import *
 from linkedin_scraper import OUTPUT_FILENAME as SCRAPER_OUT
+from search_scraper import google_search
+from webscraper import scrape_webpage
 import twitter_scraper as ts
 from query_ai import *
 from query_ai import OUTPUT_FILENAME as AI_OUT
@@ -9,10 +11,13 @@ from instascraper import *
 from instascraper import OUTPUT_FILENAME as INSTAGRAM_OUT
 from instascraper import query as instaquery
 import re
+import json
 
 APP_SHOW_BROWSER = True
 LINKEDIN_SCRAPER_OUTPUT_FILE = 'linkedin_scraper.out'
 TWITTER_SCRAPER_OUTPUT_FILE = 'twitter_scraper.out'
+GOOGLE_SEARCH_OUTPUT_FILE = 'google_scraper.out'
+WEB_SCRAPER_OUTPUT_FILE = 'web_scraper.out'
 
 # for maintaining persistant selenium driver
 selenium_driver = None
@@ -34,6 +39,14 @@ def find_first_number(string: str):
         # Return None if no number is found
         return None
 
+def extract_links(text):
+    # Regular expression pattern to match URLs
+    url_pattern = r'(https?://[^\s]+)'
+
+    # Find all occurrences of the pattern in the text
+    links = re.findall(url_pattern, text)
+
+    return links
 
 def scrape_instagram():
     # Get user input CHANGE THIS
@@ -101,9 +114,45 @@ def scrape_instagram():
     finally:
         print("haiii")
     
-    
 
+def scrape_google():
+    global selenium_driver
 
+    output = ''
+    # get initial inputed information
+    firstname, lastname = tuple(session.get('target_name').split())
+    more_info = session.get('more_info')
+    search_query = firstname + " " + lastname + " " + more_info
+
+    # perform initial google search
+    search_results = google_search(search_query)
+    with open(GOOGLE_SEARCH_OUTPUT_FILE, 'w') as json_file:
+        json.dump(search_results, json_file, indent=4)
+
+    # query ChatGPT for the relevant findings
+    string_query_ai = "This is information from 10 google sites, rank them in the liklihood that they have good information about " + firstname + " " + lastname + " Return only the links that will be relevant"
+    query_with_file(GOOGLE_SEARCH_OUTPUT_FILE, string_query_ai)
+    with open("query.out", 'r', encoding='utf-8') as f:
+        file_content = f.read()
+    links = extract_links(file_content)
+
+    # scrape all relevant links
+    # send all linkedin, instagram, and twitter to the proper scrapers
+    for link in links:
+        link = link.strip(")")
+        time.sleep(5)
+        print(link)
+        if "linkedin" in link:
+            # profile_text = get_profile(selenium_driver, link)
+            # save_to_file(LINKEDIN_SCRAPER_OUTPUT_FILE, profile_text)
+            pass
+        elif "instagram" in link:
+            pass
+        elif "twitter" in link:
+            pass
+        else:
+            output += scrape_webpage(link)
+    save_to_file(WEB_SCRAPER_OUTPUT_FILE, output)
 
 
 
@@ -172,7 +221,7 @@ def scrape():
 
     # TODO
     scrape_instagram()
-    # scrape_google()
+    scrape_google()
 
     return jsonify({'redirect_url': '/display_generating_report'})
 
