@@ -25,16 +25,18 @@ def get_apikey(filename):
             if line.startswith('api_key'):
                 api_key = line.split('=')[1].strip()
     return api_key
-def get_username(filename):
+
+
+def get_credentials(filename):
     with open(filename, 'r') as f:
         for line in f.readlines():
             if line.startswith('#'):
                 continue
-            if line.startswith('instausername'):
-                api_key = line.split('=')[1].strip()
-            if line.startswith('instapassword'):
-                apikey2 = line.split('=')[1].strip()
-    return api_key, apikey2
+            if line.startswith('instagram_username'):
+                username = line.split('=')[1].strip()
+            if line.startswith('instagram_password'):
+                password = line.split('=')[1].strip()
+    return username, password
 
 
 

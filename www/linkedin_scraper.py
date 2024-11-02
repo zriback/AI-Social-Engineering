@@ -1,10 +1,6 @@
-from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service as ChromeService
-from subprocess import CREATE_NO_WINDOW
 from bs4 import BeautifulSoup
 from dataclasses import dataclass
 import time
@@ -79,18 +75,7 @@ def get_credentials(filename):
 
 # get a Selenium driver for browsing web pages
 # also login so that only has to happen once
-def get_driver(username, password, show_browser):
-    options = Options()
-
-    if not show_browser:
-        options.add_argument('--headless=old')
-    options.add_argument("--log-level=3")
-
-    chrome_service = ChromeService()
-    chrome_service.creation_flags = CREATE_NO_WINDOW
-
-    driver = webdriver.Chrome(options=options, service=chrome_service)
-
+def linkedin_login(driver, username, password):
     # Open LinkedIn login page
     driver.get("https://www.linkedin.com/login")
 
@@ -110,8 +95,6 @@ def get_driver(username, password, show_browser):
 
     # Wait for the profile page to load and navigate to the desired profile
     WebDriverWait(driver, 30).until(EC.url_contains("feed"))
-
-    return driver
 
 
 def get_profile(driver, link):
