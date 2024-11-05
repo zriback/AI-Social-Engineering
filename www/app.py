@@ -7,8 +7,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options
 from subprocess import CREATE_NO_WINDOW
 import linkedin_scraper as ls
-from linkedin_scraper import OUTPUT_FILENAME as SCRAPER_OUT
-from search_scraper import google_search
+import search_scraper as gs
 from webscraper import scrape_webpage
 import twitter_scraper as ts
 from query_ai import *
@@ -47,6 +46,7 @@ def find_first_number(string: str):
     else:
         # Return None if no number is found
         return None
+
 
 def extract_links(text):
     # Regular expression pattern to match URLs
@@ -97,7 +97,6 @@ def scrape_instagram():
 
             if len(usernames2) == 5:
                 break
-        # print(usernames2)
         # Log into Instagram
         _is.login_to_instagram(selenium_driver, username, password)
         canidates = []
@@ -109,8 +108,7 @@ def scrape_instagram():
         canidates.append(usernames)
 
         with open("candidates.json", "w", encoding="utf-8") as f:
-            json.dump(canidates, f, indent=2, ensure_ascii=False)
-              
+            json.dump(canidates, f, indent=2, ensure_ascii=False) 
 
         _is.query("candidates.json", 2)
         with open(INSTAGRAM_OUT, 'r') as file:
@@ -149,12 +147,13 @@ def scrape_google():
     search_query = firstname + " " + lastname + " " + more_info
 
     # perform initial google search
-    search_results = google_search(search_query)
+    search_results = gs.google_search(search_query)
     with open(GOOGLE_SEARCH_OUTPUT_FILE, 'w') as json_file:
         json.dump(search_results, json_file, indent=4)
 
     # query ChatGPT for the relevant findings
-    string_query_ai = "This is information from 10 google sites, rank them in the liklihood that they have good information about " + firstname + " " + lastname + " Return only the links that will be relevant"
+    string_query_ai = f'This is information from 10 google sites, rank them in the likelihood that they have good information about {firstname} {lastname} who we know the following about, too: \
+        {more_info}. Return only the links that will be relevant'
     query_with_file(GOOGLE_SEARCH_OUTPUT_FILE, string_query_ai)
     with open("query.out", 'r', encoding='utf-8') as f:
         file_content = f.read()
@@ -166,6 +165,8 @@ def scrape_google():
         link = link.strip(")")
         time.sleep(5)
         print(link)
+        # can also SKIP all these things and assume they will be found by their own scrapers
+        # so only look 
         if "linkedin" in link:
             # profile_text = get_profile(selenium_driver, link)
             # save_to_file(LINKEDIN_SCRAPER_OUTPUT_FILE, profile_text)
@@ -176,7 +177,7 @@ def scrape_google():
             pass
         else:
             output += scrape_webpage(link)
-    save_to_file(WEB_SCRAPER_OUTPUT_FILE, output)
+    ls.save_to_file(WEB_SCRAPER_OUTPUT_FILE, output)
 
 
 def scrape_linkedin():
@@ -249,12 +250,11 @@ def scrape():
     global selenium_driver
     selenium_driver = get_driver(APP_SHOW_BROWSER)
 
-    # do first search for that name on LinkedIn
-    # scrape_linkedin()
-    # scrape_twitter()
-
+    # scrape all websites!
+    scrape_linkedin()
+    scrape_twitter()
     scrape_instagram()
-    # scrape_google()
+    scrape_google()
 
     return jsonify({'redirect_url': '/display_generating_report'})
 
@@ -283,8 +283,9 @@ def display_generating_report():
 def generate_report():
     query_string = 'This is the raw data from the LinkedIn profile of a person and some of their tweets and instagram posts. Summarize all the information, \
         and make sure to give specific detail on work experience, education, and interests. Include a section in your response on what \
-        we can learn about this person based on their tweets.' 
-    query_with_files([LINKEDIN_SCRAPER_OUTPUT_FILE, TWITTER_SCRAPER_OUTPUT_FILE, INTSTAGRAM_SCRAPER_OUTPUT_FILE], query_string)
+        we can learn about this person based on their tweets, a section on what we can learn from their Instagram activity, and a section on what we can learn \
+        from other websites.' 
+    query_with_files([LINKEDIN_SCRAPER_OUTPUT_FILE, TWITTER_SCRAPER_OUTPUT_FILE, INTSTAGRAM_SCRAPER_OUTPUT_FILE, WEB_SCRAPER_OUTPUT_FILE], query_string)
     # get query output form the AI's output file
     with open(AI_OUT, 'r') as f:
         query_output = f.read()
@@ -324,6 +325,6 @@ def scrape_linkedin_profile():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5500)
+    app.run(debug=True, port=5001)
 
     
