@@ -122,9 +122,6 @@ def click_first_post(driver, account, number):
     return x
 
 
-
-
-
 def setup_driver(proxy_address=None, proxy_port=None):
     """Set up Selenium WebDriver with proxy if provided using Firefox"""
     firefox_options = Options()

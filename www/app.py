@@ -362,8 +362,24 @@ def display_phishing_mats():
     phishing_mats = session.get('phishing_mats')
     return render_template('display_phishing_mats.html', file_contents=phishing_mats)
 
+def clear_output_files():
+    output_files = [
+        'web_scraper.out',
+        'instagram_scraper.out',
+        'linkedin_scraper.out',
+        'twitter_scraper.out'
+    ]
+
+    for filename in output_files:
+        f = open(filename, 'w')
+        f.close()
+    
 
 if __name__ == '__main__':
+
+    # clear old information
+    clear_output_files()
+
     app.run(debug=True, port=7007)
 
     
