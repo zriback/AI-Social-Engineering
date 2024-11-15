@@ -76,46 +76,50 @@ def scrape_instagram(selenium_driver: webdriver, session: dict):
     # Get user input CHANGE THIS
     username, password = _is.get_credentials(CONF_FILENAME)
     usernames = session.get('target_name') + session.get('more_info')
-    num_posts = 10
+    num_posts = 5  # 5 is a more conservative amount
     
-    try:
-        selenium_driver.get(f"https://www.google.com/search?q={usernames}+instagram")
-        time.sleep(2)
-        titles = selenium_driver.find_elements(By.TAG_NAME, "h3")
-        usernames2 = []
-        for t in titles:
-            stuff = t.text
-            if "@" in stuff:
-                help = stuff.split("@")[1].split()[0]
-                help = help[:-1]
-                
-                usernames2.append(help)
+    #try:
+    selenium_driver.get(f"https://www.google.com/search?q={usernames}+instagram")
+    time.sleep(2)
+    titles = selenium_driver.find_elements(By.TAG_NAME, "h3")
+    usernames2 = []
+    for t in titles:
+        stuff = t.text
+        if "@" in stuff:
+            help = stuff.split("@")[1].split()[0]
+            help = help[:-1]
+            
+            usernames2.append(help)
 
-            if len(usernames2) == 5:
-                break
-        # Log into Instagram
-        _is.login_to_instagram(selenium_driver, username, password)
-        canidates = []
+        if len(usernames2) == 5:
+            break
+    # Log into Instagram
+    _is.login_to_instagram(selenium_driver, username, password)
+    candidates = []
 
-        for username in usernames2:
-            profiledata = _is.scrape_user_profile(selenium_driver, username, 1)
-            canidates.append(profiledata)
-        
-        canidates.append(usernames)
+    for username in usernames2:
+        profiledata = _is.scrape_user_profile(selenium_driver, username, 1)
+        candidates.append(profiledata)
+    
+    candidates.append(usernames)
 
-        with open("candidates.json", "w", encoding="utf-8") as f:
-            json.dump(canidates, f, indent=2, ensure_ascii=False) 
+    with open("candidates.json", "w", encoding="utf-8") as f:
+        json.dump(candidates, f, indent=2, ensure_ascii=False) 
 
-        _is.query("candidates.json", 2)
-        with open(INSTAGRAM_OUT, 'r') as file:
-            contents = file.read()
-            print(contents)
+    _is.query("candidates.json", 2)
+    with open(INSTAGRAM_OUT, 'r') as file:
+        contents = file.read()
+        print(contents)
 
-        result = re.search(r'\d+', contents)
+    awesomenumber = find_first_number(contents)
 
-        awesomenumber = result.group()
-        usernames_input = canidates[int(awesomenumber) - 1]['username']
-        print(usernames_input)
+    if awesomenumber == -1:
+        print('No suitable profile found by instagram scraper.')
+        with open(INTSTAGRAM_SCRAPER_OUTPUT_FILE, 'w') as f:
+            f.write('No instagram profile was found for this target')
+    else:
+        usernames_input = candidates[awesomenumber - 1]['username']
+        print(f'instascraper - selected {usernames_input}')
         usernames = [username.strip() for username in usernames_input.split(',')]
         # Scrape profiles
         all_profiles = []
@@ -129,8 +133,8 @@ def scrape_instagram(selenium_driver: webdriver, session: dict):
             json.dump(all_profiles, f, indent=2, ensure_ascii=False)
 
         print("Scraping complete. Data saved to instagram_profiles_posts.json")
-    except:
-        print('Something went wrong with the instragram scraper :(')
+    # except Exception as e:
+    #     print('Something went wrong with the instragram scraper', e)
     
 
 def scrape_google(session: dict):
@@ -203,8 +207,14 @@ def scrape_linkedin(selenium_driver: webdriver, session: dict):
         ai_choice_num = None
 
     profile_link = ls.get_profile_link(profile_choice_list, ai_choice_num)
-    profile_text = ls.get_profile(selenium_driver, profile_link)
-    ls.save_to_file(LINKEDIN_SCRAPER_OUTPUT_FILE, profile_text)
+
+    if profile_link is None:
+        print('No Linkedin profile is being used.')
+        with open(LINKEDIN_SCRAPER_OUTPUT_FILE, 'w') as f:
+            f.write('An associated LinkedIn profile could not be found.')
+    else:
+        profile_text = ls.get_profile(selenium_driver, profile_link)
+        ls.save_to_file(LINKEDIN_SCRAPER_OUTPUT_FILE, profile_text)
 
 
 def scrape_twitter(selenium_driver: webdriver, session: dict):
@@ -220,20 +230,30 @@ def scrape_twitter(selenium_driver: webdriver, session: dict):
     choice_list_printout = ts.select_profile(profile_choice_list)
     query_string = f'{choice_list_printout}\n\nHere are some people with their name, title, and location. They are numbered starting from 0 and going up. \
         Use the following provided information to select the person from this list that most matches this added information. Your answer should come in the form \
-        of just ONE number followed by the word "bananas". Here is the added information\n{more_info}'
+        of just ONE number followed by the word "bananas". If you think none of the options are who we are looking for, return the number -1 followed by the \
+        word bananas Here is the added information\n{more_info}'
     
     # get the number from the AI for its choice
     ai_choice_string = query_ai(query_string)
     ai_choice_num = find_first_number(ai_choice_string)
 
+    if ai_choice_num == -1:
+        ai_choice_num = None
+
     profile_link = ts.get_profile_link(profile_choice_list, ai_choice_num)
-    tweets = ts.get_tweets_and_save(selenium_driver, profile_link, 10, TWITTER_SCRAPER_OUTPUT_FILE)
 
-    tweets_str = ''
-    for tweet in tweets:
-        tweets_str += (tweet + '\n')
+    if profile_link is None:
+        print('Could not find a Twitter profile for the target')
+        with open(TWITTER_SCRAPER_OUTPUT_FILE, 'w') as f:
+            f.write('Could not find a Twitter profile for this target')
+    else:
+        tweets = ts.get_tweets_and_save(selenium_driver, profile_link, 10, TWITTER_SCRAPER_OUTPUT_FILE)
 
-    ls.save_to_file(TWITTER_SCRAPER_OUTPUT_FILE, tweets_str)
+        tweets_str = ''
+        for tweet in tweets:
+            tweets_str += (tweet + '\n')
+
+        ls.save_to_file(TWITTER_SCRAPER_OUTPUT_FILE, tweets_str)
 
 
 @app.route('/')
@@ -242,6 +262,7 @@ def home():
 
 @app.route('/scrape', methods=['POST'])
 def scrape():
+    clear_output_files()
     session_copy = session.copy()
 
     linkedin_thread = threading.Thread(target=scrape_linkedin, args=[get_driver(APP_SHOW_BROWSER), session_copy])
@@ -281,10 +302,11 @@ def display_generating_report():
 # for now it just deals with the linkedin stuff but once everything is implemented it will do all of it
 @app.route('/generate_report', methods=['POST'])
 def generate_report():
-    query_string = 'This is the raw data from the LinkedIn profile of a person and some of their tweets and instagram posts. Summarize all the information, \
-        and make sure to give specific detail on work experience, education, and interests. Include a section in your response on what \
-        we can learn about this person based on their tweets, a section on what we can learn from their Instagram activity, and a section on what we can learn \
-        from other websites.' 
+    query_string = 'Included is some of the raw information on a target person that was found from sources like LinkedIn, Twitter, \
+    Instagram, and other websites. Analyze all the information and summarize it. Your response should include the sections \
+    Work Experience, Education, Physical locations (any physical locations where they can be found), Family/Associates, \
+    Contact Information, and Miscellaneous. If you do not have information for a certain section, it is fine to say "None Found"\
+    but the section should always be there. When applicable, state from what sources each piece of information was found.' 
     query_with_files(SUMMARY_OUTPUT_FILENAME ,[LINKEDIN_SCRAPER_OUTPUT_FILE, TWITTER_SCRAPER_OUTPUT_FILE, INTSTAGRAM_SCRAPER_OUTPUT_FILE, WEB_SCRAPER_OUTPUT_FILE], query_string)
     # get query output form the AI's output file
     with open(SUMMARY_OUTPUT_FILENAME, 'r') as f:
@@ -367,7 +389,13 @@ def clear_output_files():
         'web_scraper.out',
         'instagram_scraper.out',
         'linkedin_scraper.out',
-        'twitter_scraper.out'
+        'twitter_scraper.out',
+        'candidates.json',
+        'google_scraper.out',
+        'insta.out',
+        'phishing_mats.out',
+        'query.out',
+        
     ]
 
     for filename in output_files:
@@ -376,10 +404,7 @@ def clear_output_files():
     
 
 if __name__ == '__main__':
-
-    # clear old information
     clear_output_files()
-
-    app.run(debug=True, port=7007)
+    app.run(debug=True, port=7102)
 
     

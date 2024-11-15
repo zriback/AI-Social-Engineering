@@ -34,9 +34,18 @@ def get_profile_link(people: list['TwitterPerson'], selection: int = None):
     if selection is None:
         # Now we have a list of all potential people it could be
         # Ask the user to pick one of them
-        print('Which one of the above listed options is the person you are targetting?')
-        selection = int(input('Enter number: '))
-        return people[selection].profile_link
+        for person in people:
+            print(person)
+        print('Twitter scraper: I could not determine which person we are targetting. Which one of the above listed options is \
+        please identify the target by entering the appropriate number. If none are correct, enter "None"')
+        
+        # selection = input('Enter number: ')
+        selection = 'None'
+
+        if selection == 'None':
+            return None
+        else:
+            return people[int(selection)].profile_link
     else:  # a selection was passed, just use that
         return people[selection].profile_link
 

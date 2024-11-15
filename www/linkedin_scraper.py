@@ -134,9 +134,15 @@ def get_profile_link(people: list['LinkedIn_Person'], selection: int = None):
         # Now we have a list of all potential people it could be
         # Ask the user to pick one of them
         print(get_string_profile_choice_list(people))
-        print('Which one of the above listed options is the person you are targetting?')
-        selection = int(input('Enter number: '))
-        return people[selection].link
+        print('Linkedin - Which one of the above listed options is the person you are targetting? If none of the options are correct\
+        enter "None" as your answer')
+        # selection = input('Enter number: ')
+        selection = 'None'
+
+        if selection == 'None':
+            return None
+        else:
+            return people[int(selection)].link
     else:  # a selection was passed, just use that
         return people[selection].link
 
@@ -174,6 +180,7 @@ def get_profile_choice_list(driver, firstname, lastname):
 
 
 # main scraping function
+# not used in Flask app workflow
 def scrape(firstname, lastname):
     # get user credentials from secret file
     username, password = get_credentials(CONF_FILENAME)

@@ -8,9 +8,6 @@ from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
-
-
-
 from openai import OpenAI
 import base64
 
@@ -55,9 +52,14 @@ def query(filepath, number):
 
     # Ask a question about the file content
     if number == 1:
-        question = "This is data from the Instagram profile of a person. Summarize all the information, and make sure to give specific detail on work experience, education, and interests."
+        question = "This is data from the Instagram profile of a person. Summarize all the information, and make sure to give \
+            specific detail on work experience, education, and interests."
     if number == 2:
-        question = "Here are some people's instagram information. They are numbered starting from 1 and going up. Use the following provided information to select the person from this list that most matches the target person as described in the last line of the document. Your answer should come in the form of just ONE number followed by the word 'bananas'. Here is the added information"
+        question = "Here are some people's instagram information. They are numbered starting from 1 and going up. Use the \
+            following provided information to select the person from this list that most matches the target person as \
+            described in the last line of the document. Your answer should come in the form of just ONE number followed \
+            by the word 'bananas'. If NONE of the options appear the match the information given, return the value -1 \
+            follwed by the word 'bananas'. DO NOT respond with any other words or numbers. Here is the added information"
 
     # Prepare the request payload
     messages = [
@@ -83,9 +85,6 @@ def query(filepath, number):
     
     with open(OUTPUT_FILENAME, 'w') as f:
         f.write(answer)
-
-
-
 
 
 def click_first_post(driver, account, number):
@@ -295,7 +294,7 @@ def parse_number(text):
 
 def main():
     # Get user input
-    username, password = get_username(CONF_FILENAME)
+    username, password = get_credentials(CONF_FILENAME)
     usernames_input = input("Enter Name of Individual: ")
     usernames = [username.strip() for username in usernames_input.split(',')]
     num_posts = 10
@@ -325,28 +324,32 @@ def main():
         # print(usernames2)
         # Log into Instagram
         login_to_instagram(driver, username, password)
-        canidates = []
+        candidates = []
 
         for username in usernames2:
             profiledata = scrape_user_profile(driver, username, 1)
-            canidates.append(profiledata)
+            candidates.append(profiledata)
         
-        canidates.append(usernames)
+        candidates.append(usernames)
 
         with open("candidates.json", "w", encoding="utf-8") as f:
-            json.dump(canidates, f, indent=2, ensure_ascii=False)
-            
-            
+            json.dump(candidates, f, indent=2, ensure_ascii=False)     
 
         query("candidates.json", 2)
-        with open('query.out', 'r') as file:
+        with open(OUTPUT_FILENAME, 'r') as file:
             contents = file.read()
             print(contents)
 
         result = re.search(r'\d+', contents)
 
         awesomenumber = result.group()
-        usernames_input = canidates[int(awesomenumber) - 1]['username']
+
+        # check if none of the options were correct
+        if awesomenumber == -1:
+            print('instascraper - none of these profile choices are the target we are looking for')
+
+
+        usernames_input = candidates[int(awesomenumber) - 1]['username']
         print(usernames_input)
         usernames = [username.strip() for username in usernames_input.split(',')]
         # Scrape profiles
