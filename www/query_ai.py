@@ -2,7 +2,6 @@ from openai import OpenAI
 import base64
 
 CONF_FILENAME = 'secrets.conf'
-OUTPUT_FILENAME = 'query.out'
 
 def get_apikey(filename):
     with open(filename, 'r') as f:
@@ -47,7 +46,7 @@ def query(question: str):
 
 # ask AI question with all given file contents
 # output is put into OUTPUT_FILE
-def query_with_files(filenames: list['str'], question: str):
+def query_with_files(out_filename: str, in_filenames: list['str'], question: str):
     my_key = get_apikey(CONF_FILENAME)
 
     client = OpenAI(
@@ -55,7 +54,7 @@ def query_with_files(filenames: list['str'], question: str):
     )
 
     all_file_info = ''
-    for filename in filenames:
+    for filename in in_filenames:
         with open(filename, 'r', encoding='utf-8') as f:
             all_file_info += f.read() + '\n\n'
 
@@ -81,14 +80,14 @@ def query_with_files(filenames: list['str'], question: str):
     # Print the model's response
     answer = response.choices[0].message.content
     
-    with open(OUTPUT_FILENAME, 'w') as f:
+    with open(out_filename, 'w') as f:
         f.write(answer)
 
 
 
 # ask AI question with given file contents
 # output is put into the OUTPUT_FILE 
-def query_with_file(filename: str, question: str):
+def query_with_file(out_filename: str, in_filename: str, question: str):
     my_key = get_apikey(CONF_FILENAME)
 
     client = OpenAI(
@@ -96,7 +95,7 @@ def query_with_file(filename: str, question: str):
     )
 
     # Load and encode the content of the text file
-    with open(filename, 'r', encoding='utf-8') as f:
+    with open(in_filename, 'r', encoding='utf-8') as f:
         file_content = f.read()
 
     # Prepare the request payload
@@ -121,7 +120,7 @@ def query_with_file(filename: str, question: str):
     # Print the model's response
     answer = response.choices[0].message.content
     
-    with open(OUTPUT_FILENAME, 'w') as f:
+    with open(out_filename, 'w') as f:
         f.write(answer)
 
 

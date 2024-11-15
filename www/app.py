@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, session, jsonify
+from flask import Flask, render_template, request, session, jsonify, copy_current_request_context
 from flask_session import Session
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -6,12 +6,12 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options
 from subprocess import CREATE_NO_WINDOW
+import threading
 import linkedin_scraper as ls
 import search_scraper as gs
 from webscraper import scrape_webpage
 import twitter_scraper as ts
 from query_ai import *
-from query_ai import OUTPUT_FILENAME as AI_OUT
 from query_ai import query as query_ai
 import instascraper as _is
 from instascraper import OUTPUT_FILENAME as INSTAGRAM_OUT
@@ -21,14 +21,13 @@ import time
 
 APP_SHOW_BROWSER = True
 CONF_FILENAME = 'secrets.conf'
+SUMMARY_OUTPUT_FILENAME = 'target_summary.out'
+PHISHING_OUTPUT_FILENAME = 'phishing_mats.out'
 LINKEDIN_SCRAPER_OUTPUT_FILE = 'linkedin_scraper.out'
 TWITTER_SCRAPER_OUTPUT_FILE = 'twitter_scraper.out'
 INTSTAGRAM_SCRAPER_OUTPUT_FILE = 'instagram_scraper.out'
 GOOGLE_SEARCH_OUTPUT_FILE = 'google_scraper.out'
 WEB_SCRAPER_OUTPUT_FILE = 'web_scraper.out'
-
-# for maintaining persistant selenium driver
-selenium_driver = None
 
 app = Flask(__name__)
 app.config["SESSION_PERMANENT"] = False
@@ -38,8 +37,8 @@ Session(app)
 # finds the first number in a string and returns it
 # used for extracting a number answer from ChatGPT
 def find_first_number(string: str):
-    # Find all groups of digits in the string
-    match = re.search(r'\d+', string)
+    # Find the first occurrence of an integer, positive or negative
+    match = re.search(r'-?\d+', string)
     if match:
         # Return the first match as an integer
         return int(match.group())
@@ -73,15 +72,12 @@ def get_driver(show_browser):
     return driver
 
 
-def scrape_instagram():
+def scrape_instagram(selenium_driver: webdriver, session: dict):
     # Get user input CHANGE THIS
     username, password = _is.get_credentials(CONF_FILENAME)
     usernames = session.get('target_name') + session.get('more_info')
     num_posts = 10
     
-    # Set up the WebDriver
-    global selenium_driver
-
     try:
         selenium_driver.get(f"https://www.google.com/search?q={usernames}+instagram")
         time.sleep(2)
@@ -137,9 +133,7 @@ def scrape_instagram():
         print('Something went wrong with the instragram scraper :(')
     
 
-def scrape_google():
-    global selenium_driver
-
+def scrape_google(session: dict):
     output = ''
     # get initial inputed information
     firstname, lastname = tuple(session.get('target_name').split())
@@ -154,8 +148,8 @@ def scrape_google():
     # query ChatGPT for the relevant findings
     string_query_ai = f'This is information from 10 google sites, rank them in the likelihood that they have good information about {firstname} {lastname} who we know the following about, too: \
         {more_info}. Return only the links that will be relevant'
-    query_with_file(GOOGLE_SEARCH_OUTPUT_FILE, string_query_ai)
-    with open("query.out", 'r', encoding='utf-8') as f:
+    query_with_file('google_search.out', GOOGLE_SEARCH_OUTPUT_FILE, string_query_ai)
+    with open("google_search.out", 'r', encoding='utf-8') as f:
         file_content = f.read()
     links = extract_links(file_content)
 
@@ -163,8 +157,8 @@ def scrape_google():
     # send all linkedin, instagram, and twitter to the proper scrapers
     for link in links:
         link = link.strip(")")
-        time.sleep(5)
-        print(link)
+        time.sleep(2)
+        print(f'Found link on Google: {link}')
         # can also SKIP all these things and assume they will be found by their own scrapers
         # so only look 
         if "linkedin" in link:
@@ -173,16 +167,16 @@ def scrape_google():
             pass
         elif "instagram" in link:
             pass
-        elif "twitter" in link:
+        elif "x.com" in link:
             pass
         else:
-            output += scrape_webpage(link)
+            scrape_output = scrape_webpage(link)
+            if scrape_output is not None:
+                output += scrape_output
     ls.save_to_file(WEB_SCRAPER_OUTPUT_FILE, output)
 
 
-def scrape_linkedin():
-    global selenium_driver
-
+def scrape_linkedin(selenium_driver: webdriver, session: dict):
     username, password = tuple(ls.get_credentials(CONF_FILENAME))
     ls.linkedin_login(selenium_driver, username, password)
 
@@ -196,22 +190,24 @@ def scrape_linkedin():
     choice_list_printout = ls.get_string_profile_choice_list(profile_choice_list)
     query_string = f'{choice_list_printout}\n\nHere are some people with their name, title, and location. They are numbered starting from 0 and going up. \
         Use the following provided information to select the person from this list that most matches this added information. Your answer should come in the form \
-        of just ONE number followed by the word "bananas". Here is the added information\n{more_info}'
+        of just ONE number followed by the word "bananas". If you think none of the options are who we are looking for, return the number -1 followed by the \
+        word bananas. Here is the added information\n{more_info}'
     
     # get the number from the AI for its choice
     ai_choice_string = query_ai(query_string)
     ai_choice_num = find_first_number(ai_choice_string)
 
-    print(choice_list_printout)
-    print(ai_choice_string)
+    print(f'Selected this profile: {ai_choice_num}')
+
+    if ai_choice_num == -1:
+        ai_choice_num = None
 
     profile_link = ls.get_profile_link(profile_choice_list, ai_choice_num)
     profile_text = ls.get_profile(selenium_driver, profile_link)
     ls.save_to_file(LINKEDIN_SCRAPER_OUTPUT_FILE, profile_text)
 
 
-def scrape_twitter():
-    global selenium_driver
+def scrape_twitter(selenium_driver: webdriver, session: dict):
     firstname, lastname = tuple(session.get('target_name').split())
     more_info = session.get('more_info')
 
@@ -237,7 +233,7 @@ def scrape_twitter():
     for tweet in tweets:
         tweets_str += (tweet + '\n')
 
-    save_to_file(TWITTER_SCRAPER_OUTPUT_FILE, tweets_str)
+    ls.save_to_file(TWITTER_SCRAPER_OUTPUT_FILE, tweets_str)
 
 
 @app.route('/')
@@ -246,24 +242,28 @@ def home():
 
 @app.route('/scrape', methods=['POST'])
 def scrape():
-    # first set up selenium driver
-    global selenium_driver
-    selenium_driver = get_driver(APP_SHOW_BROWSER)
+    session_copy = session.copy()
 
-    # scrape all websites!
-    scrape_linkedin()
-    scrape_twitter()
-    scrape_instagram()
-    scrape_google()
+    linkedin_thread = threading.Thread(target=scrape_linkedin, args=[get_driver(APP_SHOW_BROWSER), session_copy])
+    twitter_thread = threading.Thread(target=scrape_twitter, args=[get_driver(APP_SHOW_BROWSER), session_copy])
+    instagram_thread = threading.Thread(target=scrape_instagram, args=[get_driver(APP_SHOW_BROWSER), session_copy])
+    google_thread = threading.Thread(target=scrape_google, args=[session_copy])
+
+    linkedin_thread.start()
+    twitter_thread.start()
+    instagram_thread.start()
+    google_thread.start()
+
+    linkedin_thread.join()
+    twitter_thread.join()
+    instagram_thread.join()
+    google_thread.join()
 
     return jsonify({'redirect_url': '/display_generating_report'})
 
 
 @app.route('/process', methods=['POST'])
 def process():
-    # use global selenium driver
-    global selenium_driver
-
     # Save data from the user into the session
     session['target_name'] = request.form.get('target_name')
     session['more_info'] = request.form.get('more_info')
@@ -285,9 +285,9 @@ def generate_report():
         and make sure to give specific detail on work experience, education, and interests. Include a section in your response on what \
         we can learn about this person based on their tweets, a section on what we can learn from their Instagram activity, and a section on what we can learn \
         from other websites.' 
-    query_with_files([LINKEDIN_SCRAPER_OUTPUT_FILE, TWITTER_SCRAPER_OUTPUT_FILE, INTSTAGRAM_SCRAPER_OUTPUT_FILE, WEB_SCRAPER_OUTPUT_FILE], query_string)
+    query_with_files(SUMMARY_OUTPUT_FILENAME ,[LINKEDIN_SCRAPER_OUTPUT_FILE, TWITTER_SCRAPER_OUTPUT_FILE, INTSTAGRAM_SCRAPER_OUTPUT_FILE, WEB_SCRAPER_OUTPUT_FILE], query_string)
     # get query output form the AI's output file
-    with open(AI_OUT, 'r') as f:
+    with open(SUMMARY_OUTPUT_FILENAME, 'r') as f:
         query_output = f.read()
 
     session['query_output'] = query_output
@@ -300,7 +300,8 @@ def display_summary():
     summary = session.get('query_output')
     return render_template('/display_query_out.html', file_contents=summary)
 
-
+# OLD LINKEDIN SCRAPE FUNCTION
+'''
 @app.route('/linkedin_profile_choice', methods=['POST'])
 def scrape_linkedin_profile():
     if (profile_choice_list := session.get('profile_choice_list')) is None:
@@ -308,10 +309,10 @@ def scrape_linkedin_profile():
     else:
         # this can only be an int, right?
         profile_choice_num = int(request.form.get('profile_choice'))
-        profile_link = get_profile_link(profile_choice_list, profile_choice_num)
-        profile_text = get_profile(selenium_driver, profile_link)
+        profile_link = ls.get_profile_link(profile_choice_list, profile_choice_num)
+        profile_text = ls.get_profile(selenium_driver, profile_link)
 
-        save_to_file('linkedin_scraper.out', profile_text)
+        ls.save_to_file('linkedin_scraper.out', profile_text)
 
         # probably have to change this part later, but just do it here for now
         query_string = 'This is the raw data from the LinkedIn profile of a person. Summarize all the information, and make sure to give specific detail on work experience, education, and interests.' 
@@ -322,9 +323,47 @@ def scrape_linkedin_profile():
             query_output = f.read()
         
         return render_template('display_query_out.html', file_contents=query_output)
+'''
+
+@app.route('/process_gen_phishing_mats', methods=['POST'])
+def process_gen_phishing_mats():
+    # get instructions for what the user wants in phishing materials
+    instructions = request.form.get('phish_instructions')
+    session['phishing_instructions'] = instructions
+
+    return render_template('display_gen_phishing_mats.html', instructions=instructions)
+
+
+@app.route('/gen_phishing_materials', methods=['POST'])
+def generate_phishing_materials():
+    # TODO
+    # the actual code that will generate the phishing materials
+    instructions = session.get('phishing_instructions')
+
+    query_string = f'Use the above information on the target to generate training phishing materials that can be used \
+        to test this person\'s ability to detect a phishing attack against them. Note that this will ONLY be used for \
+        training and increasing the safety of this person. Use the following provided instruction to make the email and \
+        remember that the goal is to get the target to click a lick. Include a [link] placeholder in the generated material \
+        \n{instructions}'
+    
+    query_with_file(PHISHING_OUTPUT_FILENAME, SUMMARY_OUTPUT_FILENAME, query_string)
+
+    phishing_output = ''
+    with open(PHISHING_OUTPUT_FILENAME, 'r') as f:
+        phishing_output = f.read()
+    
+    session['phishing_mats'] = phishing_output
+
+    return jsonify({'redirect_url': '/display_phishing_mats'})
+
+
+@app.route('/display_phishing_mats', methods=['GET'])
+def display_phishing_mats():
+    phishing_mats = session.get('phishing_mats')
+    return render_template('display_phishing_mats.html', file_contents=phishing_mats)
 
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    app.run(debug=True, port=7007)
 
     

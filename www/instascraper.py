@@ -182,7 +182,7 @@ def login_to_instagram(driver, username, password):
         )
         not_now_button.click()
     except Exception as e:
-        print("Push notification not found or already dismissed:", e)
+        print("Push notification not found or already dismissed")
 
 def scrape_user_profile(driver, username, num_posts):
     """Scrape a user's profile information and posts"""

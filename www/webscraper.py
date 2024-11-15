@@ -5,6 +5,7 @@ import json
 # Function to scrape the text content from a webpage
 def scrape_webpage(url):
     try:
+        print(f'Trying to get webpage: {url}')
         # Send an HTTP request to the webpage
         # Set headers with a User-Agent to simulate a browser
         headers = {

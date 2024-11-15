@@ -55,17 +55,8 @@
     </style>
 </head>
 <body>
-    <h1>Profile Information</h1> 
+    <h1>Phishing Material Generation</h1> 
     <div class="content">{{ file_contents }}
-        
-        <form action="/process_gen_phishing_mats" method="post">
-            <label for="phish_instructions">Additional Instructions:</label>
-            <textarea id="phish_instructions" name="phish_instructions" rows="4"></textarea>
-            <div class="button-container">
-                <button type="submit">Generate Phishing Materials</button>
-            </div>
-        </form>
-    </div>
     <div class="button-container">
         <button onclick="location.href='/'">Search another target</button>
     </div>
