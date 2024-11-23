@@ -28,6 +28,7 @@ TWITTER_SCRAPER_OUTPUT_FILE = 'twitter_scraper.out'
 INTSTAGRAM_SCRAPER_OUTPUT_FILE = 'instagram_scraper.out'
 GOOGLE_SEARCH_OUTPUT_FILE = 'google_scraper.out'
 WEB_SCRAPER_OUTPUT_FILE = 'web_scraper.out'
+RESCRAPE_WEB_SCRAPER_OUTPUT_FILE = 'rescrape.out'
 
 app = Flask(__name__)
 app.config["SESSION_PERMANENT"] = False
@@ -73,13 +74,12 @@ def get_driver(show_browser):
 
 
 def scrape_instagram(selenium_driver: webdriver, session: dict):
-    # Get user input CHANGE THIS
     username, password = _is.get_credentials(CONF_FILENAME)
-    usernames = session.get('target_name') + session.get('more_info')
+    target_info = session.get('target_name') + ' ' + session.get('more_info')
     num_posts = 5  # 5 is a more conservative amount
     
     #try:
-    selenium_driver.get(f"https://www.google.com/search?q={usernames}+instagram")
+    selenium_driver.get(f"https://www.google.com/search?q={target_info}+instagram")
     time.sleep(2)
     titles = selenium_driver.find_elements(By.TAG_NAME, "h3")
     usernames2 = []
@@ -101,7 +101,7 @@ def scrape_instagram(selenium_driver: webdriver, session: dict):
         profiledata = _is.scrape_user_profile(selenium_driver, username, 1)
         candidates.append(profiledata)
     
-    candidates.append(usernames)
+    candidates.append(target_info)
 
     with open("candidates.json", "w", encoding="utf-8") as f:
         json.dump(candidates, f, indent=2, ensure_ascii=False) 
@@ -109,7 +109,6 @@ def scrape_instagram(selenium_driver: webdriver, session: dict):
     _is.query("candidates.json", 2)
     with open(INSTAGRAM_OUT, 'r') as file:
         contents = file.read()
-        print(contents)
 
     awesomenumber = find_first_number(contents)
 
@@ -118,6 +117,10 @@ def scrape_instagram(selenium_driver: webdriver, session: dict):
         with open(INTSTAGRAM_SCRAPER_OUTPUT_FILE, 'w') as f:
             f.write('No instagram profile was found for this target')
     else:
+        print('candidates is', candidates)
+        print('length of it is', len(candidates))
+        print('awesomenumber is', awesomenumber)
+        print('first thing we got is', candidates[awesomenumber - 1])
         usernames_input = candidates[awesomenumber - 1]['username']
         print(f'instascraper - selected {usernames_input}')
         usernames = [username.strip() for username in usernames_input.split(',')]
@@ -137,12 +140,13 @@ def scrape_instagram(selenium_driver: webdriver, session: dict):
     #     print('Something went wrong with the instragram scraper', e)
     
 
-def scrape_google(session: dict):
+def scrape_google(session: dict, output_file, search_query=None):
     output = ''
     # get initial inputed information
     firstname, lastname = tuple(session.get('target_name').split())
     more_info = session.get('more_info')
-    search_query = firstname + " " + lastname + " " + more_info
+    if search_query is None:
+        search_query = firstname + " " + lastname + " " + more_info
 
     # perform initial google search
     search_results = gs.google_search(search_query)
@@ -153,7 +157,7 @@ def scrape_google(session: dict):
     string_query_ai = f'This is information from 10 google sites, rank them in the likelihood that they have good information about {firstname} {lastname} who we know the following about, too: \
         {more_info}. Return only the links that will be relevant'
     query_with_file('google_search.out', GOOGLE_SEARCH_OUTPUT_FILE, string_query_ai)
-    with open("google_search.out", 'r', encoding='utf-8') as f:
+    with open("google_search.out", 'r', encoding='utf-8', errors='ignore') as f:
         file_content = f.read()
     links = extract_links(file_content)
 
@@ -177,7 +181,7 @@ def scrape_google(session: dict):
             scrape_output = scrape_webpage(link)
             if scrape_output is not None:
                 output += scrape_output
-    ls.save_to_file(WEB_SCRAPER_OUTPUT_FILE, output)
+    ls.save_to_file(output_file, output)
 
 
 def scrape_linkedin(selenium_driver: webdriver, session: dict):
@@ -192,10 +196,10 @@ def scrape_linkedin(selenium_driver: webdriver, session: dict):
     session['profile_choice_list'] = profile_choice_list
     
     choice_list_printout = ls.get_string_profile_choice_list(profile_choice_list)
+
     query_string = f'{choice_list_printout}\n\nHere are some people with their name, title, and location. They are numbered starting from 0 and going up. \
         Use the following provided information to select the person from this list that most matches this added information. Your answer should come in the form \
-        of just ONE number followed by the word "bananas". If you think none of the options are who we are looking for, return the number -1 followed by the \
-        word bananas. Here is the added information\n{more_info}'
+        of just ONE number followed by the word "bananas". Here is the added information\n{more_info}'
     
     # get the number from the AI for its choice
     ai_choice_string = query_ai(query_string)
@@ -266,19 +270,19 @@ def scrape():
     session_copy = session.copy()
 
     linkedin_thread = threading.Thread(target=scrape_linkedin, args=[get_driver(APP_SHOW_BROWSER), session_copy])
-    twitter_thread = threading.Thread(target=scrape_twitter, args=[get_driver(APP_SHOW_BROWSER), session_copy])
-    instagram_thread = threading.Thread(target=scrape_instagram, args=[get_driver(APP_SHOW_BROWSER), session_copy])
-    google_thread = threading.Thread(target=scrape_google, args=[session_copy])
+    # twitter_thread = threading.Thread(target=scrape_twitter, args=[get_driver(APP_SHOW_BROWSER), session_copy])
+    # instagram_thread = threading.Thread(target=scrape_instagram, args=[get_driver(APP_SHOW_BROWSER), session_copy])
+    # google_thread = threading.Thread(target=scrape_google, args=[session_copy, GOOGLE_SEARCH_OUTPUT_FILE])
 
     linkedin_thread.start()
-    twitter_thread.start()
-    instagram_thread.start()
-    google_thread.start()
+    # twitter_thread.start()
+    # instagram_thread.start()
+    # google_thread.start()
 
     linkedin_thread.join()
-    twitter_thread.join()
-    instagram_thread.join()
-    google_thread.join()
+    # twitter_thread.join()
+    # instagram_thread.join()
+    # google_thread.join()
 
     return jsonify({'redirect_url': '/display_generating_report'})
 
@@ -322,30 +326,51 @@ def display_summary():
     summary = session.get('query_output')
     return render_template('/display_query_out.html', file_contents=summary)
 
-# OLD LINKEDIN SCRAPE FUNCTION
-'''
-@app.route('/linkedin_profile_choice', methods=['POST'])
-def scrape_linkedin_profile():
-    if (profile_choice_list := session.get('profile_choice_list')) is None:
-        return render_template('something_went_wrong.html')
-    else:
-        # this can only be an int, right?
-        profile_choice_num = int(request.form.get('profile_choice'))
-        profile_link = ls.get_profile_link(profile_choice_list, profile_choice_num)
-        profile_text = ls.get_profile(selenium_driver, profile_link)
 
-        ls.save_to_file('linkedin_scraper.out', profile_text)
+@app.route('/process_rescrape', methods=['POST'])
+def process_rescrape():
+    instructions = request.form.get('rescrape_instructions')
+    session['rescrape_instructions'] = instructions
 
-        # probably have to change this part later, but just do it here for now
-        query_string = 'This is the raw data from the LinkedIn profile of a person. Summarize all the information, and make sure to give specific detail on work experience, education, and interests.' 
-        query_with_file(LINKEDIN_SCRAPER_OUTPUT_FILE, query_string)
+    return render_template('display_rescrape.html')
 
-        # we know it goes to 'query.out'
-        with open(AI_OUT, 'r') as f:
-            query_output = f.read()
-        
-        return render_template('display_query_out.html', file_contents=query_output)
-'''
+@app.route('/rescrape', methods=['POST'])
+def rescrape():
+    instructions = session.get('rescrape_instructions')
+    target_name = session.get('target_name')
+
+
+    # first need to get the new search term
+    query_string = f'Use the above included content and pull out this info from it: {instructions}. The target name is {target_name}\
+        Generate a Google query that starts with {target_name} and then has up to several words pertaining to the info you pulled \
+        out from the information above. The end result should be a Google search term that starts with the target name and can be \
+        used to find more information about the target using the given information. Your response to this query should just be the \
+        content that I have asked for in the format I asked for it in. Nothing else should be included in your response, and you \
+        do not have to explain how you got what you did.'
+    
+    query_with_file('rescrape_get_search_term.out', SUMMARY_OUTPUT_FILENAME, query_string)
+
+    search_query = ''
+    with open('rescrape_get_search_term.out', 'r') as f:
+        search_query = f.read()
+    
+    scrape_google(session, RESCRAPE_WEB_SCRAPER_OUTPUT_FILE, search_query)
+
+    query_string = 'Included is some of the raw information on a target person that was found from sources like LinkedIn, Twitter, \
+    Instagram, and other websites. Analyze all the information and summarize it. Your response should include the sections \
+    Work Experience, Education, Physical locations (any physical locations where they can be found), Family/Associates, \
+    Contact Information, and Miscellaneous. If you do not have information for a certain section, it is fine to say "None Found"\
+    but the section should always be there. When applicable, state from what sources each piece of information was found.' 
+    query_with_files(SUMMARY_OUTPUT_FILENAME ,[LINKEDIN_SCRAPER_OUTPUT_FILE, TWITTER_SCRAPER_OUTPUT_FILE, INTSTAGRAM_SCRAPER_OUTPUT_FILE, WEB_SCRAPER_OUTPUT_FILE, RESCRAPE_WEB_SCRAPER_OUTPUT_FILE], query_string)
+
+    # get query output form the AI's output file
+    with open(SUMMARY_OUTPUT_FILENAME, 'r') as f:
+        query_output = f.read()
+
+    session['query_output'] = query_output
+
+    return jsonify({'redirect_url': '/display_summary'})
+
 
 @app.route('/process_gen_phishing_mats', methods=['POST'])
 def process_gen_phishing_mats():
@@ -358,8 +383,6 @@ def process_gen_phishing_mats():
 
 @app.route('/gen_phishing_materials', methods=['POST'])
 def generate_phishing_materials():
-    # TODO
-    # the actual code that will generate the phishing materials
     instructions = session.get('phishing_instructions')
 
     query_string = f'Use the above information on the target to generate training phishing materials that can be used \
@@ -395,7 +418,7 @@ def clear_output_files():
         'insta.out',
         'phishing_mats.out',
         'query.out',
-        
+        'rescrape.out'
     ]
 
     for filename in output_files:
@@ -405,6 +428,6 @@ def clear_output_files():
 
 if __name__ == '__main__':
     clear_output_files()
-    app.run(debug=True, port=7102)
+    app.run(debug=True, port=8012)
 
     

@@ -55,11 +55,11 @@ def query(filepath, number):
         question = "This is data from the Instagram profile of a person. Summarize all the information, and make sure to give \
             specific detail on work experience, education, and interests."
     if number == 2:
-        question = "Here are some people's instagram information. They are numbered starting from 1 and going up. Use the \
-            following provided information to select the person from this list that most matches the target person as \
-            described in the last line of the document. Your answer should come in the form of just ONE number followed \
-            by the word 'bananas'. If NONE of the options appear the match the information given, return the value -1 \
-            follwed by the word 'bananas'. DO NOT respond with any other words or numbers. Here is the added information"
+        question = "Here are some people's instagram information. They are numbered starting from 1 and going up. Select \
+            the person from this list that most matches the target person as described in the last line of the document. \
+            Your answer should come in the form of just ONE number followed by the word 'bananas'. If NONE of the options \
+            appear the match the information given, return the value -1 follwed by the word 'bananas'. DO NOT respond with \
+            any other words or numbers. Your full response should ONLY be the number followed by the word 'bananas' and nothing else"
 
     # Prepare the request payload
     messages = [

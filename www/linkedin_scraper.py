@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 from dataclasses import dataclass
 import time
 import sys
+import re
 
 CONF_FILENAME = 'secrets.conf'
 OUTPUT_FILENAME = 'scraper.out'
@@ -134,8 +135,8 @@ def get_profile_link(people: list['LinkedIn_Person'], selection: int = None):
         # Now we have a list of all potential people it could be
         # Ask the user to pick one of them
         print(get_string_profile_choice_list(people))
-        print('Linkedin - Which one of the above listed options is the person you are targetting? If none of the options are correct\
-        enter "None" as your answer')
+        print('Linkedin - Which one of the above listed options is the person you are targetting? If none of the options are correct, \
+              enter "None" as your answer')
         # selection = input('Enter number: ')
         selection = 'None'
 
@@ -157,21 +158,27 @@ def get_profile_choice_list(driver, firstname, lastname):
     # Extract the full page html content
     html_content = driver.execute_script("return document.documentElement.innerHTML;")
     soup = BeautifulSoup(html_content, 'html.parser')
-    main_content = soup.find('main')
-    result_containers = main_content.find_all('li', class_='reusable-search__result-container')
+    main_content = soup.find('main').find('ul', class_=re.compile(r'^[A-Za-z0-9_-]+ list-style-none$'))
+
+    # got the container for the misspelled name thing
+    # need to get the next ul instead
+    if 'Showing results for' in main_content.text and 'Search instead for' in main_content.text:
+        main_content = main_content.find_next('ul', class_=re.compile(r'^[A-Za-z0-9_-]+ list-style-none$'))
+
+    result_containers = main_content.find_all('li')
 
     people = []
 
     for result in result_containers:
         # if critical information is missing, will cause error and we can skip this result container
         try:
-            primary_info = result.find('span', class_='entity-result__title-text t-16')
+            primary_info = result.find('div', class_=re.compile(r'^[A-Za-z0-9_-]+ entity-result__divider pt3 pb3 t-12 t-black--light$'))
             name = primary_info.find('span', dir='ltr').find_next('span').text.strip()
-            link = primary_info.find('a', class_='app-aware-link')['href']
-
-            title = result.find('div', class_='entity-result__primary-subtitle t-14 t-black t-normal').text.strip()
-            location = result.find('div', class_='entity-result__secondary-subtitle t-14 t-normal').text.strip()
+            link = primary_info.find_next('a')['href']
+            title = primary_info.find('div', class_=re.compile(r'^[A-Za-z0-9_-]+ t-14 t-black t-normal$')).text.strip()  
+            location = result.find('div', class_=re.compile(r'^[A-Za-z0-9_-]+ t-14 t-normal$')).text.strip()
         except AttributeError as e:
+            print('Could not get the linkedin info from this profile', e)
             continue
 
         people.append(LinkedIn_Person(name, title, location, link))
