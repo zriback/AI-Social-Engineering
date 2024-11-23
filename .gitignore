@@ -1,6 +1,6 @@
 **/*.out
 **/*.json
 __pycache__
-www/__pycache__
-www/flask_session
-secrets.conf
+**/__pycache__
+**/flask_session
+**/secrets.conf
