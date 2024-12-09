@@ -342,6 +342,32 @@ def display_summary():
     summary = session.get('query_output')
     return render_template('/display_query_out.html', file_contents=summary)
 
+@app.route('/generate_help', methods=['POST'])
+def generate_help():
+    query_string = (
+        "Analyze the provided information from LinkedIn, Twitter, Instagram, and web scrapers. "
+        "Summarize which platform has the most data about the user, suggest ways to secure privacy on these platforms, "
+        "and if no data or minimal data is found, commend the user for maintaining privacy on that platform. "
+        "Format the report clearly and concisely."
+    )
+    query_with_files(
+        SUMMARY_OUTPUT_FILENAME,
+        [LINKEDIN_SCRAPER_OUTPUT_FILE, TWITTER_SCRAPER_OUTPUT_FILE, INTSTAGRAM_SCRAPER_OUTPUT_FILE, WEB_SCRAPER_OUTPUT_FILE],
+        query_string,
+    )
+
+    with open(SUMMARY_OUTPUT_FILENAME, 'r') as f:
+        query_output = f.read()
+
+    session['help_output'] = query_output.strip()
+    return jsonify({'redirect_url': '/display_help'})
+
+
+@app.route('/display_help', methods=['GET'])
+def display_help():
+    help_output = session.get('help_output', 'No data available to display.')
+    return render_template('display_help.html', file_contents=help_output)
+
 
 @app.route('/process_rescrape', methods=['POST'])
 def process_rescrape():
