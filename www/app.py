@@ -177,12 +177,10 @@ def scrape_google(session: dict, output_file, search_query=None):
         print(f'Found link on Google: {link}')
         # can also SKIP all these things and assume they will be found by their own scrapers
         if "linkedin" in link:
-            # profile_text = get_profile(selenium_driver, link)
-            # save_to_file(LINKEDIN_SCRAPER_OUTPUT_FILE, profile_text)
             pass
         elif "instagram" in link:
             pass
-        elif "x.com" in link:
+        elif "twitter" or "https://x.com" in link:
             pass
         else:
             scrape_output = scrape_webpage(link)
