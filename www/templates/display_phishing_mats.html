@@ -62,3 +62,18 @@
     </div>
 </body>
 </html>
+
+<div class="button-container">
+    <button onclick="generateHelp()">Generate Remediation Report</button>
+</div>
+<script>
+    function generateHelp() {
+        fetch('/generate_help', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                }
+            });
+    }
+</script>
