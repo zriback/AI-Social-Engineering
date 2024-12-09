@@ -55,6 +55,14 @@ def extract_links(text):
     # Find all occurrences of the pattern in the text
     links = re.findall(url_pattern, text)
 
+    for i, link in enumerate(links):
+        clean_link = re.match(r'\((.*?)\)', link)
+        if clean_link is None:
+            link = link.strip('*()[]')
+            links[i] = link
+        else:
+            links[i] = clean_link
+
     return links
 
 
@@ -155,20 +163,19 @@ def scrape_google(session: dict, output_file, search_query=None):
 
     # query ChatGPT for the relevant findings
     string_query_ai = f'This is information from 10 google sites, rank them in the likelihood that they have good information about {firstname} {lastname} who we know the following about, too: \
-        {more_info}. Return only the links that will be relevant'
+        {more_info}. If the link has a chance of having good information about the target, return it.'
     query_with_file('google_search.out', GOOGLE_SEARCH_OUTPUT_FILE, string_query_ai)
     with open("google_search.out", 'r', encoding='utf-8', errors='ignore') as f:
         file_content = f.read()
+
     links = extract_links(file_content)
 
     # scrape all relevant links
     # send all linkedin, instagram, and twitter to the proper scrapers
     for link in links:
-        link = link.strip(")")
         time.sleep(2)
         print(f'Found link on Google: {link}')
         # can also SKIP all these things and assume they will be found by their own scrapers
-        # so only look 
         if "linkedin" in link:
             # profile_text = get_profile(selenium_driver, link)
             # save_to_file(LINKEDIN_SCRAPER_OUTPUT_FILE, profile_text)
@@ -205,7 +212,7 @@ def scrape_linkedin(selenium_driver: webdriver, session: dict):
     ai_choice_string = query_ai(query_string)
     ai_choice_num = find_first_number(ai_choice_string)
 
-    print(f'Selected this profile: {ai_choice_num}')
+    print(f'LinkedIn: Selected this profile: {ai_choice_num}')
 
     if ai_choice_num == -1:
         ai_choice_num = None
@@ -270,19 +277,19 @@ def scrape():
     session_copy = session.copy()
 
     linkedin_thread = threading.Thread(target=scrape_linkedin, args=[get_driver(APP_SHOW_BROWSER), session_copy])
-    # twitter_thread = threading.Thread(target=scrape_twitter, args=[get_driver(APP_SHOW_BROWSER), session_copy])
-    # instagram_thread = threading.Thread(target=scrape_instagram, args=[get_driver(APP_SHOW_BROWSER), session_copy])
-    # google_thread = threading.Thread(target=scrape_google, args=[session_copy, GOOGLE_SEARCH_OUTPUT_FILE])
+    twitter_thread = threading.Thread(target=scrape_twitter, args=[get_driver(APP_SHOW_BROWSER), session_copy])
+    instagram_thread = threading.Thread(target=scrape_instagram, args=[get_driver(APP_SHOW_BROWSER), session_copy])
+    google_thread = threading.Thread(target=scrape_google, args=[session_copy, GOOGLE_SEARCH_OUTPUT_FILE])
 
     linkedin_thread.start()
-    # twitter_thread.start()
-    # instagram_thread.start()
-    # google_thread.start()
+    twitter_thread.start()
+    instagram_thread.start()
+    google_thread.start()
 
     linkedin_thread.join()
-    # twitter_thread.join()
-    # instagram_thread.join()
-    # google_thread.join()
+    twitter_thread.join()
+    instagram_thread.join()
+    google_thread.join()
 
     return jsonify({'redirect_url': '/display_generating_report'})
 
@@ -306,16 +313,23 @@ def display_generating_report():
 # for now it just deals with the linkedin stuff but once everything is implemented it will do all of it
 @app.route('/generate_report', methods=['POST'])
 def generate_report():
-    query_string = 'Included is some of the raw information on a target person that was found from sources like LinkedIn, Twitter, \
-    Instagram, and other websites. Analyze all the information and summarize it. Your response should include the sections \
-    Work Experience, Education, Physical locations (any physical locations where they can be found), Family/Associates, \
+    target_name = session.get('target_name')
+
+    query_string = f'Included is some of the raw information on a target person by the name of {target_name} that was found from \
+    sources like LinkedIn, Twitter, Instagram, and other websites. Analyze all the information and summarize it. Your response should \
+    include the sections Work Experience, Education, Physical locations (any physical locations where they can be found), Family/Associates, \
     Contact Information, and Miscellaneous. If you do not have information for a certain section, it is fine to say "None Found"\
-    but the section should always be there. When applicable, state from what sources each piece of information was found.' 
-    query_with_files(SUMMARY_OUTPUT_FILENAME ,[LINKEDIN_SCRAPER_OUTPUT_FILE, TWITTER_SCRAPER_OUTPUT_FILE, INTSTAGRAM_SCRAPER_OUTPUT_FILE, WEB_SCRAPER_OUTPUT_FILE], query_string)
+    but the section should always be there. When applicable, state from what sources each piece of information was found.\
+    Some of this raw information is taken from web pages where the target might only be mentioned briefly and the whole web page\
+    is actually about something else. Examine this raw information, decide what role the traget played, and include that in your report somewhere.' 
+    query_with_files(SUMMARY_OUTPUT_FILENAME, [LINKEDIN_SCRAPER_OUTPUT_FILE, TWITTER_SCRAPER_OUTPUT_FILE, INTSTAGRAM_SCRAPER_OUTPUT_FILE, WEB_SCRAPER_OUTPUT_FILE], query_string)
     # get query output form the AI's output file
     with open(SUMMARY_OUTPUT_FILENAME, 'r') as f:
         query_output = f.read()
-
+    
+    query_output = query_output.replace('**', '')
+    
+    # get rid of the bold ** ChatGPT puts in the output
     session['query_output'] = query_output
     
     return jsonify({'redirect_url': '/display_summary'})
@@ -339,11 +353,11 @@ def rescrape():
     instructions = session.get('rescrape_instructions')
     target_name = session.get('target_name')
 
-
     # first need to get the new search term
     query_string = f'Use the above included content and pull out this info from it: {instructions}. The target name is {target_name}\
         Generate a Google query that starts with {target_name} and then has up to several words pertaining to the info you pulled \
-        out from the information above. The end result should be a Google search term that starts with the target name and can be \
+        out from the information above. Do not include terms like LinkedIn, Instagram, or Twitter because we already have \
+        information from those sources. The end result should be a Google search term that starts with the target name and can be \
         used to find more information about the target using the given information. Your response to this query should just be the \
         content that I have asked for in the format I asked for it in. Nothing else should be included in your response, and you \
         do not have to explain how you got what you did.'
@@ -361,13 +375,16 @@ def rescrape():
     Work Experience, Education, Physical locations (any physical locations where they can be found), Family/Associates, \
     Contact Information, and Miscellaneous. If you do not have information for a certain section, it is fine to say "None Found"\
     but the section should always be there. When applicable, state from what sources each piece of information was found.' 
-    query_with_files(SUMMARY_OUTPUT_FILENAME ,[LINKEDIN_SCRAPER_OUTPUT_FILE, TWITTER_SCRAPER_OUTPUT_FILE, INTSTAGRAM_SCRAPER_OUTPUT_FILE, WEB_SCRAPER_OUTPUT_FILE, RESCRAPE_WEB_SCRAPER_OUTPUT_FILE], query_string)
+    query_with_files(SUMMARY_OUTPUT_FILENAME, [LINKEDIN_SCRAPER_OUTPUT_FILE, TWITTER_SCRAPER_OUTPUT_FILE, INTSTAGRAM_SCRAPER_OUTPUT_FILE, WEB_SCRAPER_OUTPUT_FILE, RESCRAPE_WEB_SCRAPER_OUTPUT_FILE], query_string)
 
     # get query output form the AI's output file
     with open(SUMMARY_OUTPUT_FILENAME, 'r') as f:
         query_output = f.read()
 
     session['query_output'] = query_output
+
+    # get rid of the bold ** ChatGPT puts in the output
+    query_output = query_output.replace('**', '')
 
     return jsonify({'redirect_url': '/display_summary'})
 
@@ -428,6 +445,4 @@ def clear_output_files():
 
 if __name__ == '__main__':
     clear_output_files()
-    app.run(debug=True, port=8012)
-
-    
+    app.run(debug=True, port=6505)

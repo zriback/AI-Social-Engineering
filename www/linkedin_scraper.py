@@ -160,6 +160,9 @@ def get_profile_choice_list(driver, firstname, lastname):
     soup = BeautifulSoup(html_content, 'html.parser')
     main_content = soup.find('main').find('ul', class_=re.compile(r'^[A-Za-z0-9_-]+ list-style-none$'))
 
+    if main_content is None:
+        print('LinkedIn - something went wrong with scraping the search page...')
+
     # got the container for the misspelled name thing
     # need to get the next ul instead
     if 'Showing results for' in main_content.text and 'Search instead for' in main_content.text:
@@ -172,7 +175,7 @@ def get_profile_choice_list(driver, firstname, lastname):
     for result in result_containers:
         # if critical information is missing, will cause error and we can skip this result container
         try:
-            primary_info = result.find('div', class_=re.compile(r'^[A-Za-z0-9_-]+ entity-result__divider pt3 pb3 t-12 t-black--light$'))
+            primary_info = result.find('div', class_=re.compile(r'^[A-Za-z0-9_-]+ [A-Za-z0-9_-]+ pt3 pb3 t-12 t-black--light$'))
             name = primary_info.find('span', dir='ltr').find_next('span').text.strip()
             link = primary_info.find_next('a')['href']
             title = primary_info.find('div', class_=re.compile(r'^[A-Za-z0-9_-]+ t-14 t-black t-normal$')).text.strip()  

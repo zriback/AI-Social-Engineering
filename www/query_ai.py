@@ -47,6 +47,9 @@ def query(question: str):
 # ask AI question with all given file contents
 # output is put into OUTPUT_FILE
 def query_with_files(out_filename: str, in_filenames: list['str'], question: str):
+    # max size for a request
+    max_request_size = 1048576 - 20000
+
     my_key = get_apikey(CONF_FILENAME)
 
     client = OpenAI(
@@ -57,6 +60,9 @@ def query_with_files(out_filename: str, in_filenames: list['str'], question: str
     for filename in in_filenames:
         with open(filename, 'r', encoding='utf-8') as f:
             all_file_info += f.read() + '\n\n'
+    
+    if len(all_file_info) > max_request_size:
+        all_file_info = all_file_info[:max_request_size]
 
     # Prepare the request payload
     messages = [
