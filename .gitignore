@@ -4,3 +4,4 @@ __pycache__
 **/__pycache__
 **/flask_session
 **/secrets.conf
+*.out

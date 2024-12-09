@@ -229,41 +229,43 @@ def scrape_linkedin(selenium_driver: webdriver, session: dict):
 
 
 def scrape_twitter(selenium_driver: webdriver, session: dict):
+   
     firstname, lastname = tuple(session.get('target_name').split())
     more_info = session.get('more_info')
 
-    username, password = ts.get_credentials(CONF_FILENAME)
-    selenium_driver = ts.initialize_webdriver(username, password, APP_SHOW_BROWSER)
-    profile_choice_list = ts.search_profiles(selenium_driver, firstname, lastname)
-    # save profile choice list to session so can be accessed later once the user makes a choice
+    username, password = ts.load_credentials(ts.CREDENTIALS_FILE)
+    selenium_driver = ts.init_twitter_session(username, password, ts.DISPLAY_BROWSER)
+
+    profile_choice_list = ts.search_twitter_profiles(selenium_driver, firstname, lastname)
     session['profile_choice_list'] = profile_choice_list
-    
-    choice_list_printout = ts.select_profile(profile_choice_list)
-    query_string = f'{choice_list_printout}\n\nHere are some people with their name, title, and location. They are numbered starting from 0 and going up. \
-        Use the following provided information to select the person from this list that most matches this added information. Your answer should come in the form \
-        of just ONE number followed by the word "bananas". If you think none of the options are who we are looking for, return the number -1 followed by the \
-        word bananas Here is the added information\n{more_info}'
-    
-    # get the number from the AI for its choice
+
+    choice_list_printout = "\n".join(f"{i}: {profile}" for i, profile in enumerate(profile_choice_list))
+    query_string = (
+    f"{choice_list_printout}\n\nHere are some people with their name, username, and bio. "
+    f"They are numbered starting from 0 and going up. Use the following provided information "
+    f"to select the person from this list that most closely matches the additional criteria provided. "
+    f"Your answer should come in the form of just ONE number followed by the word 'bananas'. "
+    f"If you think none of the options match, return the number -1 followed by the word 'bananas'. "
+    f"Here is the additional information:\n{more_info}"
+)
     ai_choice_string = query_ai(query_string)
     ai_choice_num = find_first_number(ai_choice_string)
-
     if ai_choice_num == -1:
         ai_choice_num = None
 
-    profile_link = ts.get_profile_link(profile_choice_list, ai_choice_num)
+    profile_link = ts.select_profile_url(profile_choice_list, selection=ai_choice_num)
 
     if profile_link is None:
         print('Could not find a Twitter profile for the target')
         with open(TWITTER_SCRAPER_OUTPUT_FILE, 'w') as f:
             f.write('Could not find a Twitter profile for this target')
     else:
-        tweets = ts.get_tweets_and_save(selenium_driver, profile_link, 10, TWITTER_SCRAPER_OUTPUT_FILE)
+        ts.TWEET_COUNT = 10
+        ts.OUTPUT_FILENAME = TWITTER_SCRAPER_OUTPUT_FILE
 
-        tweets_str = ''
-        for tweet in tweets:
-            tweets_str += (tweet + '\n')
+        tweets = ts.scrape_tweets_from_profile(selenium_driver, profile_link)
 
+        tweets_str = ''.join(tweet + '\n' for tweet in tweets)
         ls.save_to_file(TWITTER_SCRAPER_OUTPUT_FILE, tweets_str)
 
 
