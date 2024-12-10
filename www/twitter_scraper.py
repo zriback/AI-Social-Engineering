@@ -1,3 +1,10 @@
+"""
+Description: This script automates the process of logging into Twitter (X), searching for profiles based on a first and 
+last name, selecting a profile, and scraping tweets from it. The scraped tweets are saved in JSON format.
+Author: Owen Joslin
+Requirements: json, time, dataclasses, BeautifulSoup, selenium
+"""
+
 import json
 import time
 from dataclasses import dataclass
