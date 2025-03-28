@@ -101,7 +101,7 @@ def query_with_file(out_filename: str, in_filename: str, question: str):
     )
 
     # Load and encode the content of the text file
-    with open(in_filename, 'r', encoding='utf-8') as f:
+    with open(in_filename, 'r') as f:
         file_content = f.read()
 
     # Prepare the request payload

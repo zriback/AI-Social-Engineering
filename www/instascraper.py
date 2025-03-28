@@ -58,7 +58,7 @@ def query(filepath, number):
         question = "Here are some people's instagram information. They are numbered starting from 1 and going up. Select \
             the person from this list that most matches the target person as described in the last line of the document. \
             Your answer should come in the form of just ONE number followed by the word 'bananas'. If NONE of the options \
-            appear the match the information given, return the value -1 follwed by the word 'bananas'. DO NOT respond with \
+            appear the match the information given, return the value -1 follwed by the word 'bananas', but this is only the case very rarely. DO NOT respond with \
             any other words or numbers. Your full response should ONLY be the number followed by the word 'bananas' and nothing else"
 
     # Prepare the request payload

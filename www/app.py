@@ -396,21 +396,22 @@ def rescrape():
     
     scrape_google(session, RESCRAPE_WEB_SCRAPER_OUTPUT_FILE, search_query)
 
-    query_string = 'Included is some of the raw information on a target person that was found from sources like LinkedIn, Twitter, \
+    query_string = f'Included is some of the raw information on a target person that was found from sources like LinkedIn, Twitter, \
     Instagram, and other websites. Analyze all the information and summarize it. Your response should include the sections \
     Work Experience, Education, Physical locations (any physical locations where they can be found), Family/Associates, \
     Contact Information, and Miscellaneous. If you do not have information for a certain section, it is fine to say "None Found"\
-    but the section should always be there. When applicable, state from what sources each piece of information was found.' 
+    but the section should always be there. When applicable, state from what sources each piece of information was found.\
+    Include a special section dedicated to {instructions} because that is the specific section we were trying to learn about here.' 
     query_with_files(SUMMARY_OUTPUT_FILENAME, [LINKEDIN_SCRAPER_OUTPUT_FILE, TWITTER_SCRAPER_OUTPUT_FILE, INTSTAGRAM_SCRAPER_OUTPUT_FILE, WEB_SCRAPER_OUTPUT_FILE, RESCRAPE_WEB_SCRAPER_OUTPUT_FILE], query_string)
 
     # get query output form the AI's output file
     with open(SUMMARY_OUTPUT_FILENAME, 'r') as f:
         query_output = f.read()
 
-    session['query_output'] = query_output
-
     # get rid of the bold ** ChatGPT puts in the output
     query_output = query_output.replace('**', '')
+
+    session['query_output'] = query_output
 
     return jsonify({'redirect_url': '/display_summary'})
 
@@ -471,4 +472,4 @@ def clear_output_files():
 
 if __name__ == '__main__':
     clear_output_files()
-    app.run(debug=True, port=6505)
+    app.run(debug=True, port=6402)
